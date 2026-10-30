@@ -4,21 +4,14 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "IELevelStorageAccess_Misc",
-    "MixinMappedRegistry",
     "MixinMinecraftServer_Misc",
-    "dimension.DimensionTypeAccessor",
-    "dimension.IEMappedRegistry",
-    "dimension.IEWorldBorder",
-    "dimension.MixinLevelProperties_D",
-    "dimension.MixinMinecraftServer_D",
-    "dimension.MixinPlayerList_Misc",
-    "dimension.MixinWorldGenSettings"
+    "dimension.MixinPlayerList_Misc"
   ],
   "client": [
-    "client.IEClientPacketListener_Misc"
+    "client.IEClientPacketListener_Misc",
+    "client.MixinGui_Overlay"
   ],
   "injectors": {
     "defaultRequire": 1
-  },
-  "refmap": "mixins.imm_ptl.refmap.json"
+  }
 }

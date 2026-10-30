@@ -1,20 +1,5 @@
-pluginManagement {
-    repositories {
-        maven {
-            name = 'Forge'
-            url = 'https://maven.minecraftforge.net'
-        }
-        maven {
-            name = 'Parchment'
-            url = 'https://maven.parchmentmc.org'
-        }
-        maven {
-            name = 'Sponge'
-            url = 'https://repo.spongepowered.org/maven'
-        }
-        gradlePluginPortal()
-        mavenCentral()
-    }
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }
 
-include('imm_ptl_core', 'q_misc_util')
+rootProject.name = 'immersive-portals'

@@ -7,7 +7,6 @@
     "common.MixinServerPlayerEntity_MA"
   ],
   "client": [
-
   ],
   "injectors": {
     "defaultRequire": 1

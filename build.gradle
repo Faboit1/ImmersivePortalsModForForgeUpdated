@@ -1,214 +1,100 @@
-buildscript {
-    repositories {
-        maven { url = 'https://maven.minecraftforge.net' }
-        maven { url = 'https://maven.parchmentmc.org' }
-        mavenCentral()
-    }
-    dependencies {
-        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.+', changing: true
-        classpath 'org.spongepowered:mixingradle:0.7.+' // MixinGradle
-        classpath 'org.parchmentmc:librarian:1.+'
-    }
+plugins {
+    id 'java'
+    id 'idea'
+    id 'eclipse'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '[7.0.29,8)'
 }
 
-allprojects {
-    apply plugin: 'java-library'
-    apply plugin: 'net.minecraftforge.gradle'
-    apply plugin: 'org.parchmentmc.librarian.forgegradle'
-    apply plugin: 'org.spongepowered.mixin'
-    apply plugin: 'maven-publish'
-
-    sourceCompatibility = 17
-    targetCompatibility = 17
-
-    version = project.mod_version //'0.16-mc1.16.5-forge'
-
-    repositories {
-        maven { url = 'https://files.minecraftforge.net/maven' }
-        mavenCentral()
-
-        maven { url = 'https://dist.creeper.host/Sponge/maven' }
-
-        maven {
-            name "tterrag maven"
-            url "https://maven.tterrag.com/"
-        }
-        maven {
-            url "https://cursemaven.com"
-            content {
-                includeGroup "curse.maven"
-            }
-        }
-        maven {
-            name "theillusivec4"
-            url = "https://maven.theillusivec4.top/"
-        }
-        //maven{url="https://minecraft.curseforge.com/api/maven/"}
-        maven {
-            url = "https://jitpack.io"
-        }
-        maven {
-            url = "https://modmaven.dev/"
-        }
-        maven {
-            name "Modding Legacy Maven"
-            url "https://maven.moddinglegacy.com/artifactory/modding-legacy/"
-        }
-
-
-        flatDir {
-            dirs rootProject.file('libs')
-        }
-
-    }
-
-    dependencies {
-        minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.loader_version}"
-        annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-
-        // Pehkui
-        api fg.deobf("com.github.Virtuoel:Pehkui:${project.pehkui_version}")
-        // Twilight Forest
-        //api fg.deobf("teamtwilight:twilightforest:${project.twilightforest_version}:universal")
-        api fg.deobf("curse.maven:twilightforest-227639:${project.twilightforest_fileid}")
-        // Flywheel
-        api fg.deobf("com.jozufozu.flywheel:flywheel-forge-1.18.2:${project.flywheel_version}")
-        // Rubidium
-        api fg.deobf("curse.maven:rubidium-574856:${project.rubidium_fileid}")
-        // Oculus
-        api fg.deobf("curse.maven:oculus-581495:${project.oculus_fileid}")
-        // Curios
-        runtimeOnly fg.deobf("top.theillusivec4.curios:curios-forge:${project.curios_version}")
-        compileOnly fg.deobf("top.theillusivec4.curios:curios-forge:${project.curios_version}:api")
-        // Tinkers Construct
-        api fg.deobf("curse.maven:tconstruct-74072:${project.tconstruct_fileid}")
-        api fg.deobf("curse.maven:mantle-74924:${project.mantle_fileid}")
-        // Serene Seasons (Disabled: Incompatible unless compat render mode)
-        // api fg.deobf("curse.maven:sereneseasons-291874:${project.sereneseasons_fileid}")
-        // Mekanism
-        api fg.deobf("curse.maven:mekanism-268560:${project.mekanism_fileid}")
-        // Immersive Engineering
-        api fg.deobf("curse.maven:immersiveengineering-231951:${project.immersiveengineering_fileid}")
-        // Lucent
-        api fg.deobf("com.legacy:lucent:${project.lucent_version}")
-        // Music Triggers
-        api fg.deobf("curse.maven:musictriggers-518410:${project.musictrigger_fileid}")
-        api fg.deobf("curse.maven:impossiblelib-661115:${project.impossiblelib_fileid}")
-        // Vampirism
-        api fg.deobf("curse.maven:vampirism-233029:${project.vampirism_fileid}")
-        api fg.deobf("curse.maven:guide-api-village-and-pillage-380771:3677523")
-        // Agicraft
-        //implementation fg.deobf("curse.maven:agricraft-225635:4595095")
-        implementation fg.deobf('flat.dev.agricraft:agricraft-1.18.2:3.1.6')
-        implementation fg.deobf("curse.maven:infinitylib-251396:3883932")
-
-        compileOnly 'com.demonwav.mcdev:annotations:1.0'
-    }
-
-    minecraft {
-        mappings channel: 'parchment', version: "${project.mapping_version}-${project.minecraft_version}"
-        accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
-    }
-
-    tasks.withType(JavaCompile).configureEach {
-        options.encoding = "UTF-8"
-        it.options.release = 17
-    }
-}
-
-archivesBaseName = project.archives_base_name
+version = project.mod_version
 group = project.maven_group
+base.archivesName = project.archives_base_name
+
+// Mojang ships Java 25 to end users in 26.1+
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+def mixinConfigs = [
+    'imm_ptl.mixins.json',
+    'imm_ptl_peripheral.mixins.json',
+    'q_misc_util.mixins.json',
+]
 
 minecraft {
+    // Applies META-INF/accesstransformer.cfg to the Minecraft dependency
+    accessTransformer = true
+
     runs {
-        client {
-            workingDirectory project.file('run')
-            property 'forge.logging.console.level', 'debug'
-            property 'mixin.env.remapRefMap', 'true'
-            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-            mods {
-                examplemod {
-                    source sourceSets.main
-                }
-            }
+        configureEach {
+            workingDir.convention layout.projectDirectory.dir('run')
+            systemProperty 'forge.logging.console.level', 'debug'
+            mixinConfigs.each { args "--mixin.config=${it}" }
         }
-        server {
-            workingDirectory project.file('run')
-            property 'forge.logging.console.level', 'debug'
-            property 'mixin.env.remapRefMap', 'true'
-            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-            mods {
-                examplemod {
-                    source sourceSets.main
-                }
-            }
+
+        register('client')
+
+        register('server') {
+            args '--nogui'
         }
     }
 }
 
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+}
 
 dependencies {
-    compileOnly project(":imm_ptl_core")
-    compileOnly project(":q_misc_util")
-}
-tasks.withType(JavaCompile) {
-    source(project(":imm_ptl_core").sourceSets.main.allSource)
-    source(project(":q_misc_util").sourceSets.main.allSource)
-}
-processResources {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from project(":imm_ptl_core").sourceSets.main.resources
-    from project(":q_misc_util").sourceSets.main.resources
+    implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
+    annotationProcessor 'net.minecraftforge:eventbus-validator:7.0.5'
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-Xmaxerrs', '100000']
+}
 
-jar {
+tasks.named('processResources', ProcessResources) {
+    def props = [
+        mod_id               : project.mod_id,
+        mod_version          : project.mod_version,
+        minecraft_version_range: project.minecraft_version_range,
+        forge_version_range  : project.forge_version_range,
+        loader_version_range : project.loader_version_range,
+    ]
+    inputs.properties props
+    filesMatching('META-INF/mods.toml') {
+        expand props
+    }
+}
+
+tasks.named('jar', Jar) {
+    archiveFileName = "${project.archives_base_name}-${project.mod_version}-mc${project.minecraft_version}-forge.jar"
+    from 'LICENSE'
     manifest {
         attributes([
-                "Specification-Title"     : "Immersive Portals",
-                "Specification-Vendor"    : "qouteall",
-                "Specification-Version"   : "1", // We are version 1 of ourselves
-                "Implementation-Title"    : project.name,
-                "Implementation-Version"  : "${version}",
-                "Implementation-Vendor"   : "qouteall, Nick1st",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+            'Specification-Title'     : 'Immersive Portals',
+            'Specification-Vendor'    : 'qouteall',
+            'Specification-Version'   : '1',
+            'Implementation-Title'    : project.name,
+            'Implementation-Version'  : project.mod_version,
+            'Implementation-Vendor'   : 'qouteall, Nick1st',
+            // Mixin picks up our configs from the manifest at runtime
+            'MixinConfigs'            : mixinConfigs.join(','),
         ])
     }
-    from "LICENSE"
-
-    archiveFileName = "${project.archives_base_name}-${project.mod_version}-mc${project.minecraft_version}-forge.jar"
 }
-mixin {
-    add sourceSets.main, 'mixins.imm_ptl.refmap.json'
-    config 'imm_ptl.mixins.json'
-    config 'imm_ptl_forge.mixins.json'
-    config 'imm_ptl_peripheral.mixins.json'
-    config 'imm_ptl_compat.mixins.json'
-    config 'q_misc_util.mixins.json'
-    debug = false // Using true apparently crashes in dev env
-}
-
-// Example configuration to allow publishing using the maven-publish task
-// This is the preferred method to reobfuscate your jar file
-jar.finalizedBy('reobfJar')
-// However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing
-//publish.dependsOn('reobfJar')
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
-            artifact jar
+        register('mavenJava', MavenPublication) {
+            from components.java
         }
     }
     repositories {
         maven {
-            url "file:///${project.projectDir}/mcmodsrepo"
+            url = layout.projectDirectory.dir('mcmodsrepo')
         }
-    }
-}
-
-task printClasspath {
-    doLast {
-        configurations.compileClasspath.each { println "\""+ (it.toString().replace("\\","/")) + "\"," }
     }
 }

@@ -1,55 +1,30 @@
-modLoader="javafml" #mandatory
-loaderVersion="[40,)"
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
 license="Apache-2.0"
-issueTrackerURL="https://github.com/Nick1st/SeeThroughPortals/issues" #optional
-showAsResourcePack=false
+issueTrackerURL="https://github.com/Faboit1/ImmersivePortalsModForForgeUpdated/issues"
 
 [[mods]]
-modId="immersive_portals"
-version="${file.jarVersion}"
+modId="${mod_id}"
+version="${mod_version}"
 displayName="Immersive Portals"
 displayURL="https://qouteall.fun/immptl"
 logoFile="icon.png"
 authors="qouteall"
-credits="Nick1st (Trying to keep the forge version alive)"
+credits="Nick1st and the iPortalTeam (Forge/NeoForge ports), Forge 26.2 port by Faboit1"
 description='''
 See through portals and travel between dimensions seamlessly.
 '''
 
-[[mods]]
-modId="imm_ptl_core"
-version="${file.jarVersion}"
-displayName="Immersive Portals Core"
-displayURL="https://qouteall.fun/immptl"
-logoFile="icon.png"
-authors="qouteall"
-credits="Nick1st (Trying to keep the forge version alive)"
-description='''
-The core functionality of see-through portals and seamless teleportation.
-Provide the portal commands and datapack-based custom portal generation.
-The core does not change vanilla nether portal and end portal mechanics.
-'''
-
-[[mods]]
-modId="q_misc_util"
-version="${file.jarVersion}"
-displayName="QMiscUtil"
-logoFile="icon.png"
-authors="qouteall"
-credits="Nick1st (Trying to keep the forge version alive)"
-description='''
-A miscellaneous library from qouteall. Used by Immersive Portals.
-'''
-
-
-
-[[dependencies.immersive_portals]]
-    modId="imm_ptl_core" #mandatory
-    mandatory=true #mandatory
-    versionRange="[0.0.0,)" #mandatory
-
-[[dependencies.immersive_portals]]
-modId="q_misc_util"
+[[dependencies.${mod_id}]]
+modId="forge"
 mandatory=true
-versionRange="[0.0.0,)"
+versionRange="${forge_version_range}"
+ordering="NONE"
+side="BOTH"
 
+[[dependencies.${mod_id}]]
+modId="minecraft"
+mandatory=true
+versionRange="${minecraft_version_range}"
+ordering="NONE"
+side="BOTH"

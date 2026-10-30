@@ -1,43 +1,25 @@
 package qouteall.imm_ptl.peripheral.dim_stack;
 
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonSyntaxException;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.JsonOps;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.ForgeConfig;
-import net.minecraftforge.fml.loading.FMLEnvironment;
-import net.minecraftforge.fml.loading.FMLPaths;
-import org.apache.logging.log4j.LogManager;
+import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qouteall.imm_ptl.core.CHelper;
-import qouteall.imm_ptl.core.IPGlobal;
-import qouteall.imm_ptl.peripheral.alternate_dimension.AlternateDimensions;
 import qouteall.q_misc_util.my_util.GuiHelper;
 
-import javax.annotation.Nullable;
-import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
-@OnlyIn(Dist.CLIENT)
+//@OnlyIn(Dist.CLIENT)
 public class DimStackScreen extends Screen {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DimStackScreen.class);
+    
+    private final DimStackGuiController controller;
+    
     @org.jetbrains.annotations.Nullable
     public final Screen parent;
     private final Button finishButton;
@@ -47,191 +29,123 @@ public class DimStackScreen extends Screen {
     private final Button editButton;
     
     private final Button helpButton;
+    private final Button setAsPresetButton;
     
     private final Button loopButton;
     private final Button gravityModeButton;
-
-    private final Button saveAsGlobalConfig;
     
     private int titleY;
     
-    public boolean isEnabled = false;
     public final DimListWidget dimListWidget;
     
-    public boolean loopEnabled = false;
-    public boolean localGravityEnabled = false;
-    
-    public final Function<Screen,List<ResourceKey<Level>>> dimensionListSupplier;
-    private final Consumer<DimStackInfo> finishCallback;
+    private boolean isEnabled = false;
     
     public DimStackScreen(
         @Nullable Screen parent,
-        Function<Screen,List<ResourceKey<Level>>> dimensionListSupplier,
-        Consumer<DimStackInfo> finishCallback
+        DimStackGuiController controller
     ) {
-        super(new TranslatableComponent("imm_ptl.altius_screen"));
+        super(Component.translatable("imm_ptl.altius_screen"));
         this.parent = parent;
-        this.dimensionListSupplier = dimensionListSupplier;
-        this.finishCallback = finishCallback;
         
-        toggleButton = new Button(
-            0, 0, 150, 20,
-            new TranslatableComponent("imm_ptl.altius_toggle_false"),
+        toggleButton = Button.builder(
+            Component.literal("..."),
             (buttonWidget) -> {
-                setEnabled(!isEnabled);
+                controller.toggleEnabled();
             }
-        );
+        ).build();
         
-        loopButton = new Button(
-            0, 0, 150, 20,
-            new TranslatableComponent("imm_ptl.loop_disabled"),
+        loopButton = Button.builder(
+            Component.literal("..."),
             (buttonWidget) -> {
-                loopEnabled = !loopEnabled;
-                buttonWidget.setMessage(new TranslatableComponent(
-                    loopEnabled ? "imm_ptl.loop_enabled" : "imm_ptl.loop_disabled"
-                ));
+                controller.toggleLoop();
             }
-        );
+        ).build();
         
-        gravityModeButton = new Button(
-            0, 0, 150, 20,
-            new TranslatableComponent("imm_ptl.dim_stack.gravity_transform_disabled"),
-            (buttonWidget) -> {
-                localGravityEnabled = !localGravityEnabled;
-                buttonWidget.setMessage(new TranslatableComponent(
-                    localGravityEnabled ? "imm_ptl.dim_stack.gravity_transform_enabled" :
-                        "imm_ptl.dim_stack.gravity_transform_disabled"
-                ));
+        gravityModeButton = Button.builder(
+            Component.literal("..."),
+            (gravityModeButton) -> {
+                controller.toggleGravityMode();
             }
-        );
+        ).build();
         
-        finishButton = new Button(
-            0, 0, 72, 20,
-            new TranslatableComponent("imm_ptl.finish"),
+        finishButton = Button.builder(
+            Component.translatable("imm_ptl.finish"),
             (buttonWidget) -> {
-                Minecraft.getInstance().setScreen(parent);
-                finishCallback.accept(getDimStackInfo());
+                controller.onFinish();
             }
-        );
-        addDimensionButton = new Button(
-            0, 0, 72, 20,
-            new TranslatableComponent("imm_ptl.dim_stack_add"),
+        ).build();
+        this.controller = controller;
+        addDimensionButton = Button.builder(
+            Component.translatable("imm_ptl.dim_stack_add"),
             (buttonWidget) -> {
                 onAddEntry();
             }
-        );
-        removeDimensionButton = new Button(
-            0, 0, 72, 20,
-            new TranslatableComponent("imm_ptl.dim_stack_remove"),
+        ).build();
+        removeDimensionButton = Button.builder(
+            Component.translatable("imm_ptl.dim_stack_remove"),
             (buttonWidget) -> {
                 onRemoveEntry();
             }
-        );
+        ).build();
         
-        editButton = new Button(
-            0, 0, 72, 20,
-            new TranslatableComponent("imm_ptl.dim_stack_edit"),
+        editButton = Button.builder(
+            Component.translatable("imm_ptl.dim_stack_edit"),
             (buttonWidget) -> {
                 onEditEntry();
             }
-        );
-
-        saveAsGlobalConfig = new Button(
-                0, 0, 72, 20,
-                new TextComponent("Save to disk"),
-                (buttonWidget) -> {
-                    onSaveDimStack();
-                }
-        );
+        ).build();
         
         dimListWidget = new DimListWidget(
             width,
             height,
             100,
-            200,
             DimEntryWidget.widgetHeight,
             this,
-            DimListWidget.Type.mainDimensionList
+            DimListWidget.Type.mainDimensionList,
+            controller::onDragged
         );
         
-        Consumer<DimEntryWidget> callback = getElementSelectCallback();
-        if (IPGlobal.enableAlternateDimensions) {
-            dimListWidget.entryWidgets.add(createDimEntryWidget(AlternateDimensions.alternate5));
-            dimListWidget.entryWidgets.add(createDimEntryWidget(AlternateDimensions.alternate1));
-        }
-        dimListWidget.entryWidgets.add(createDimEntryWidget(Level.OVERWORLD));
-        dimListWidget.entryWidgets.add(createDimEntryWidget(Level.NETHER));
-        
         helpButton = createHelpButton(this);
-
-        if (Paths.get(FMLPaths.CONFIGDIR.get().toString(), "imm_ptl_dim_stack.json").toFile().exists()) {
-            try {
-                String dimStackConfig = Files.readString(Paths.get(FMLPaths.CONFIGDIR.get().toString(), "imm_ptl_dim_stack.json"));
-                JsonElement JSON = new GsonBuilder().create().fromJson(dimStackConfig, JsonElement.class);
-                DataResult<CompoundTag> result = CompoundTag.CODEC.parse(JsonOps.INSTANCE, JSON);
-                DimStackInfo info = DimStackInfo.fromNbt(result.result().get());
-                isEnabled = true;
-                loopEnabled = info.loop;
-                localGravityEnabled = info.gravityChange;
-                dimListWidget.entryWidgets.retainAll(new ArrayList<DimEntryWidget>());
-                info.entries.stream().forEach(dimStackEntry -> {
-                    DimEntryWidget widget =
-                            new DimEntryWidget(dimStackEntry.dimension, dimListWidget, getElementSelectCallback(), DimEntryWidget.Type.withAdvancedOptions, dimStackEntry);
-                    dimListWidget.entryWidgets.add(widget);
-                });
-            } catch (JsonSyntaxException | IOException e) {
-                LogManager.getLogger().error("Failed to read ImmersivePortals Dimension Stack Config: ", e);
+        
+        this.setAsPresetButton = Button.builder(
+            Component.translatable("imm_ptl.set_as_dim_stack_default"),
+            button -> {
+                this.controller.setAsDefault();
             }
-        }
+        ).build();
     }
-
-    private void onSaveDimStack() {
-        if (getDimStackInfo() == null) {
-            try {
-                Files.deleteIfExists(Paths.get(FMLPaths.CONFIGDIR.get().toString(), "imm_ptl_dim_stack.json"));
-            } catch (IOException e) {
-                LogManager.getLogger().error("Failed to delete ImmersivePortals Dimension Stack Config: ", e);
-            }
-        } else {
-            try (FileWriter writer = new FileWriter(Paths.get(FMLPaths.CONFIGDIR.get().toString(), "imm_ptl_dim_stack.json").toFile())) {
-                DataResult<JsonElement> result = CompoundTag.CODEC.encodeStart(JsonOps.INSTANCE, getDimStackInfo().toNbt());
-                writer.write(new GsonBuilder().setPrettyPrinting().create().toJson(result.result().get()));
-            } catch (IOException e) {
-                LogManager.getLogger().error("Failed to write ImmersivePortals Dimension Stack Config: ", e);
-            }
-        }
+    
+    public void setLoopEnabled(boolean loopEnabled) {
+        loopButton.setMessage(Component.translatable(
+            loopEnabled ? "imm_ptl.loop_enabled" : "imm_ptl.loop_disabled"
+        ));
     }
-
+    
+    public void setGravityTransformEnabled(boolean gravityTransformEnabled) {
+        gravityModeButton.setMessage(Component.translatable(
+            gravityTransformEnabled ? "imm_ptl.dim_stack.gravity_transform_enabled" :
+                "imm_ptl.dim_stack.gravity_transform_disabled"
+        ));
+    }
+    
     public static Button createHelpButton(Screen parent) {
-        return new Button(
-            0, 0, 30, 20,
-            new TextComponent("?"),
+        return Button.builder(
+            Component.literal("?"),
             button -> {
                 CHelper.openLinkConfirmScreen(
                     parent, "https://qouteall.fun/immptl/wiki/Dimension-Stack"
                 );
             }
+        ).build();
+    }
+    
+    public DimEntryWidget createDimEntryWidget(DimStackEntry entry) {
+        return new DimEntryWidget(
+            entry.getDimension(),
+            dimListWidget,
+            getElementSelectCallback(),
+            entry
         );
-    }
-    
-    private DimEntryWidget createDimEntryWidget(ResourceKey<Level> dimension) {
-        return new DimEntryWidget(dimension, dimListWidget, getElementSelectCallback(), DimEntryWidget.Type.withAdvancedOptions);
-    }
-    
-    @Nullable
-    public DimStackInfo getDimStackInfo() {
-        if (isEnabled) {
-            return new DimStackInfo(
-                dimListWidget.entryWidgets.stream().map(
-                    dimEntryWidget -> dimEntryWidget.entry
-                ).collect(Collectors.toList()),
-                loopEnabled,
-                localGravityEnabled
-            );
-        }
-        else {
-            return null;
-        }
     }
     
     @Override
@@ -244,31 +158,23 @@ public class DimStackScreen extends Screen {
         
         addRenderableWidget(editButton);
         addRenderableWidget(helpButton);
+        addRenderableWidget(setAsPresetButton);
         addRenderableWidget(loopButton);
         addRenderableWidget(gravityModeButton);
-
-        if (IPGlobal.editGlobalDimensionStack) {
-            addRenderableWidget(saveAsGlobalConfig);
-        }
-        
-        setEnabled(isEnabled);
         
         addWidget(dimListWidget);
-        
-        dimListWidget.update();
         
         GuiHelper.layout(
             0, height,
             GuiHelper.blankSpace(5),
             new GuiHelper.LayoutElement(true, 20, (from, to) -> {
-                helpButton.x = width - 50;
-                helpButton.y = from;
-                helpButton.setWidth(30);
-            }),
-            new GuiHelper.LayoutElement(true, 20, (from, to) -> {
-                saveAsGlobalConfig.x = width - 150;
-                saveAsGlobalConfig.y = from - 20;
-                saveAsGlobalConfig.setWidth(90);
+                helpButton.setX(width - 30);
+                helpButton.setY(from);
+                helpButton.setWidth(20);
+                
+                setAsPresetButton.setX(width - 125);
+                setAsPresetButton.setY(from);
+                setAsPresetButton.setWidth(90);
             }),
             new GuiHelper.LayoutElement(
                 true, 20,
@@ -280,17 +186,15 @@ public class DimStackScreen extends Screen {
             ),
             GuiHelper.blankSpace(5),
             new GuiHelper.LayoutElement(false, 1, (from, to) -> {
-                dimListWidget.updateSize(
-                    width, height,
-                    from, to
-                );
+                dimListWidget.setSize(width, to - from);
+                dimListWidget.setPosition(0, from);
             }),
             GuiHelper.blankSpace(5),
             new GuiHelper.LayoutElement(true, 20, (from, to) -> {
-                finishButton.y = from;
-                addDimensionButton.y = from;
-                removeDimensionButton.y = from;
-                editButton.y = from;
+                finishButton.setY(from);
+                addDimensionButton.setY(from);
+                removeDimensionButton.setY(from);
+                editButton.setY(from);
                 GuiHelper.layout(
                     0, width,
                     GuiHelper.blankSpace(10),
@@ -339,8 +243,9 @@ public class DimStackScreen extends Screen {
     
     @Override
     public void onClose() {
-        // When `esc` is pressed return to the parent screen rather than setting screen to `null` which returns to the main menu.
-        this.minecraft.setScreen(this.parent);
+        // When `esc` is pressed, it's the same as pressing "Finish".
+        // Don't return to the main menu.
+        controller.onFinish();
     }
     
     private Consumer<DimEntryWidget> getElementSelectCallback() {
@@ -348,31 +253,27 @@ public class DimStackScreen extends Screen {
     }
     
     @Override
-    public void render(PoseStack matrixStack, int mouseY, int i, float f) {
-        this.renderBackground(matrixStack);
-        
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
         
         if (isEnabled) {
-            dimListWidget.render(matrixStack, mouseY, i, f);
+            dimListWidget.render(guiGraphics, mouseX, mouseY, partialTick);
         }
         
-        super.render(matrixStack, mouseY, i, f);
-        
-        Font textRenderer = Minecraft.getInstance().font;
-        textRenderer.drawShadow(
-            matrixStack, this.title,
+        Font font = Minecraft.getInstance().font;
+        guiGraphics.drawString(
+            font, this.title,
             20, 10, -1
         );
-        
     }
     
-    private void setEnabled(boolean cond) {
+    public void setEnabled(boolean cond) {
         isEnabled = cond;
         if (isEnabled) {
-            toggleButton.setMessage(new TranslatableComponent("imm_ptl.altius_toggle_true"));
+            toggleButton.setMessage(Component.translatable("imm_ptl.altius_toggle_true"));
         }
         else {
-            toggleButton.setMessage(new TranslatableComponent("imm_ptl.altius_toggle_false"));
+            toggleButton.setMessage(Component.translatable("imm_ptl.altius_toggle_false"));
         }
         addDimensionButton.visible = isEnabled;
         removeDimensionButton.visible = isEnabled;
@@ -389,10 +290,10 @@ public class DimStackScreen extends Screen {
             position = 0;
         }
         else {
-            position = dimListWidget.entryWidgets.indexOf(selected);
+            position = dimListWidget.children().indexOf(selected);
         }
         
-        if (position < 0 || position > dimListWidget.entryWidgets.size()) {
+        if (position < 0 || position > dimListWidget.children().size()) {
             position = -1;
         }
         
@@ -402,20 +303,11 @@ public class DimStackScreen extends Screen {
             new SelectDimensionScreen(
                 this,
                 dimensionType -> {
-                    dimListWidget.entryWidgets.add(
-                        insertingPosition,
-                        createDimEntryWidget(dimensionType)
-                    );
-                    removeDuplicate(insertingPosition);
-                    dimListWidget.update();
-                }
+                    controller.addEntry(insertingPosition, new DimStackEntry(dimensionType));
+                },
+                controller.getDimensionList()
             )
         );
-
-//        IPGlobal.preTotalRenderTaskList.addTask(MyTaskList.withDelay(1, () -> {
-//
-//            return true;
-//        }));
     }
     
     private void onRemoveEntry() {
@@ -424,14 +316,13 @@ public class DimStackScreen extends Screen {
             return;
         }
         
-        int position = dimListWidget.entryWidgets.indexOf(selected);
+        int position = dimListWidget.children().indexOf(selected);
         
         if (position == -1) {
             return;
         }
         
-        dimListWidget.entryWidgets.remove(position);
-        dimListWidget.update();
+        controller.removeEntry(position);
     }
     
     private void onEditEntry() {
@@ -441,19 +332,16 @@ public class DimStackScreen extends Screen {
         }
         
         Minecraft.getInstance().setScreen(new DimStackEntryEditScreen(
-            this, selected
-        ));
-    }
-    
-    private void removeDuplicate(int insertedIndex) {
-        ResourceKey<Level> inserted = dimListWidget.entryWidgets.get(insertedIndex).dimension;
-        for (int i = dimListWidget.entryWidgets.size() - 1; i >= 0; i--) {
-            if (dimListWidget.entryWidgets.get(i).dimension == inserted) {
-                if (i != insertedIndex) {
-                    dimListWidget.entryWidgets.remove(i);
+            this, selected,
+            () -> {
+                int newlyChangingEntryIndex = dimListWidget.children().indexOf(selected);
+                if (newlyChangingEntryIndex == -1) {
+                    LOGGER.error("The edited entry is missing in the list");
+                    return;
                 }
+                controller.editEntry(newlyChangingEntryIndex, selected.entry);
             }
-        }
+        ));
     }
     
 }

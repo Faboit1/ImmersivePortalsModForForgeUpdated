@@ -1,13 +1,15 @@
 package qouteall.imm_ptl.peripheral.dim_stack;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.network.chat.Component;
+import qouteall.q_misc_util.Helper;
 import qouteall.q_misc_util.my_util.GuiHelper;
+
+import java.util.OptionalInt;
 
 public class DimStackEntryEditScreen extends Screen {
     
@@ -21,6 +23,8 @@ public class DimStackEntryEditScreen extends Screen {
     private final EditBox topYField;
     private final EditBox bottomYField;
     private final EditBox bedrockBlockField;
+    private final Button connectsPreviousButton;
+    private final Button connectsNextButton;
     
     private final Button finishButton;
     
@@ -30,38 +34,45 @@ public class DimStackEntryEditScreen extends Screen {
     private final GuiHelper.Rect topYLabelRect = new GuiHelper.Rect();
     private final GuiHelper.Rect bottomYLabelRect = new GuiHelper.Rect();
     private final GuiHelper.Rect bedrockLabelRect = new GuiHelper.Rect();
+    private final GuiHelper.Rect connectsPreviousRect = new GuiHelper.Rect();
+    private final GuiHelper.Rect connectsNextRect = new GuiHelper.Rect();
     
     private final Button helpButton;
     
-    protected DimStackEntryEditScreen(DimStackScreen parent, DimEntryWidget editing) {
-        super(new TranslatableComponent("imm_ptl.dim_stack_edit_screen"));
+    protected DimStackEntryEditScreen(
+        DimStackScreen parent,
+        DimEntryWidget editing,
+        Runnable callback
+    ) {
+        super(Component.literal("you cannot see me"));
         
         this.parent = parent;
         this.editing = editing;
         
         scaleField = new EditBox(
             Minecraft.getInstance().font,
-            0, 0, 0, 20, new TextComponent("heh")
+            0, 0, 0, 20, Component.literal("you cannot see me")
         );
         scaleField.setValue(Double.toString(editing.entry.scale));
         scaleField.setHighlightPos(0);//without this the text won't render. mc gui is bugged
         scaleField.setCursorPosition(0);
         
-        flipButton = new Button(
-            0, 0, 0, 20,
-            new TranslatableComponent(editing.entry.flipped ? "imm_ptl.enabled" : "imm_ptl.disabled"),
-            button -> {
-                editing.entry.flipped = !editing.entry.flipped;
-                button.setMessage(
-                    new TranslatableComponent(editing.entry.flipped ? "imm_ptl.enabled" : "imm_ptl.disabled")
-                );
-            }
-        );
+        flipButton =
+            Button.builder(
+                    Component.translatable(editing.entry.flipped ? "imm_ptl.enabled" : "imm_ptl.disabled"),
+                    button -> {
+                        editing.entry.flipped = !editing.entry.flipped;
+                        button.setMessage(
+                            Component.translatable(editing.entry.flipped ? "imm_ptl.enabled" : "imm_ptl.disabled")
+                        );
+                    }
+                )
+                .build();
         
         horizontalRotationField = new EditBox(
             Minecraft.getInstance().font,
             0, 0, 0, 20,
-            new TextComponent("you cannot see me")
+            Component.literal("you cannot see me")
         );
         horizontalRotationField.setValue(Double.toString(editing.entry.horizontalRotation));
         horizontalRotationField.setCursorPosition(0);
@@ -70,7 +81,7 @@ public class DimStackEntryEditScreen extends Screen {
         topYField = new EditBox(
             Minecraft.getInstance().font,
             0, 0, 0, 20,
-            new TextComponent("you cannot see me")
+            Component.literal("you cannot see me")
         );
         if (editing.entry.topY != null) {
             topYField.setValue(Integer.toString(editing.entry.topY));
@@ -81,7 +92,7 @@ public class DimStackEntryEditScreen extends Screen {
         bottomYField = new EditBox(
             Minecraft.getInstance().font,
             0, 0, 0, 20,
-            new TextComponent("you cannot see me")
+            Component.literal("you cannot see me")
         );
         if (editing.entry.bottomY != null) {
             bottomYField.setValue(Integer.toString(editing.entry.bottomY));
@@ -92,7 +103,7 @@ public class DimStackEntryEditScreen extends Screen {
         bedrockBlockField = new EditBox(
             Minecraft.getInstance().font,
             0, 0, 0, 20,
-            new TextComponent("you cannot see me")
+            Component.literal("you cannot see me")
         );
         bedrockBlockField.setMaxLength(200);
         if (editing.entry.bedrockReplacementStr != null) {
@@ -101,65 +112,55 @@ public class DimStackEntryEditScreen extends Screen {
         bedrockBlockField.setCursorPosition(0);
         bedrockBlockField.setHighlightPos(0);
         
-        finishButton = new Button(
-            0, 0, 0, 20, new TranslatableComponent("imm_ptl.finish"),
+        connectsPreviousButton = Button.builder(
+            Component.translatable(editing.entry.connectsPrevious ? "imm_ptl.enabled" : "imm_ptl.disabled"),
             button -> {
-                try {
-                    editing.entry.horizontalRotation = Double.parseDouble(horizontalRotationField.getValue());
-                }
-                catch (NumberFormatException e) {
-                    e.printStackTrace();
-                    editing.entry.horizontalRotation = 0;
-                }
+                editing.entry.connectsPrevious = !editing.entry.connectsPrevious;
+                button.setMessage(
+                    Component.translatable(editing.entry.connectsPrevious ? "imm_ptl.enabled" : "imm_ptl.disabled")
+                );
+            }
+        ).build();
+        
+        connectsNextButton = Button.builder(
+            Component.translatable(editing.entry.connectsNext ? "imm_ptl.enabled" : "imm_ptl.disabled"),
+            button -> {
+                editing.entry.connectsNext = !editing.entry.connectsNext;
+                button.setMessage(
+                    Component.translatable(editing.entry.connectsNext ? "imm_ptl.enabled" : "imm_ptl.disabled")
+                );
+            }
+        ).build();
+        
+        finishButton = Button.builder(
+            Component.translatable("imm_ptl.finish"),
+            button -> {
+                editing.entry.horizontalRotation =
+                    Helper.parseDouble(horizontalRotationField.getValue()).orElse(0);
                 
-                try {
-                    editing.entry.scale = Double.parseDouble(scaleField.getValue());
-                }
-                catch (NumberFormatException e) {
-                    e.printStackTrace();
-                    editing.entry.scale = 1;
-                }
+                editing.entry.scale =
+                    Helper.parseDouble(scaleField.getValue()).orElse(1);
                 
-                try {
-                    if (!topYField.getValue().isEmpty()) {
-                        editing.entry.topY = Integer.parseInt(topYField.getValue());
-                    }
-                    else {
-                        editing.entry.topY = null;
-                    }
-                }
-                catch (NumberFormatException e) {
-                    e.printStackTrace();
-                    editing.entry.topY = null;
-                }
+                OptionalInt topY = Helper.parseInt(topYField.getValue());
+                editing.entry.topY = topY.isPresent() ? topY.getAsInt() : null;
                 
-                try {
-                    if (!bottomYField.getValue().isEmpty()) {
-                        editing.entry.bottomY = Integer.parseInt(bottomYField.getValue());
-                    }
-                    else {
-                        editing.entry.bottomY = null;
-                    }
-                }
-                catch (NumberFormatException e) {
-                    e.printStackTrace();
-                    editing.entry.bottomY = null;
-                }
+                OptionalInt bottomY = Helper.parseInt(bottomYField.getValue());
+                editing.entry.bottomY = bottomY.isPresent() ? bottomY.getAsInt() : null;
                 
                 editing.entry.bedrockReplacementStr = bedrockBlockField.getValue();
                 
                 Minecraft.getInstance().setScreen(parent);
+                callback.run();
             }
-        );
+        ).build();
         
         this.helpButton = DimStackScreen.createHelpButton(this);
     }
     
+    
     @Override
     public void tick() {
         super.tick();
-        scaleField.tick();
-        horizontalRotationField.tick();
     }
     
     @Override
@@ -170,12 +171,14 @@ public class DimStackEntryEditScreen extends Screen {
         addWidget(topYField);
         addWidget(bottomYField);
         addWidget(bedrockBlockField);
+        addWidget(connectsPreviousButton);
+        addWidget(connectsNextButton);
         addRenderableWidget(finishButton);
         addRenderableWidget(helpButton);
         
         GuiHelper.layout(
             0, height,
-            GuiHelper.blankSpace(20),
+            GuiHelper.blankSpace(5),
             GuiHelper.fixedLength(20,
                 GuiHelper.combine(
                     GuiHelper.layoutRectVertically(scaleLabelRect),
@@ -218,8 +221,22 @@ public class DimStackEntryEditScreen extends Screen {
                 )
             ),
             GuiHelper.elasticBlankSpace(),
+            GuiHelper.fixedLength(20,
+                GuiHelper.combine(
+                    GuiHelper.layoutRectVertically(connectsPreviousRect),
+                    GuiHelper.layoutButtonVertically(connectsPreviousButton)
+                )
+            ),
+            GuiHelper.elasticBlankSpace(),
+            GuiHelper.fixedLength(20,
+                GuiHelper.combine(
+                    GuiHelper.layoutRectVertically(connectsNextRect),
+                    GuiHelper.layoutButtonVertically(connectsNextButton)
+                )
+            ),
+            GuiHelper.elasticBlankSpace(),
             GuiHelper.fixedLength(20, GuiHelper.layoutButtonVertically(finishButton)),
-            GuiHelper.blankSpace(20)
+            GuiHelper.blankSpace(5)
         );
         
         GuiHelper.layout(
@@ -232,7 +249,9 @@ public class DimStackEntryEditScreen extends Screen {
                     GuiHelper.layoutRectHorizontally(horizontalRotationLabelRect),
                     GuiHelper.layoutRectHorizontally(topYLabelRect),
                     GuiHelper.layoutRectHorizontally(bottomYLabelRect),
-                    GuiHelper.layoutRectHorizontally(bedrockLabelRect)
+                    GuiHelper.layoutRectHorizontally(bedrockLabelRect),
+                    GuiHelper.layoutRectHorizontally(connectsPreviousRect),
+                    GuiHelper.layoutRectHorizontally(connectsNextRect)
                 )
             ),
             GuiHelper.blankSpace(20),
@@ -243,7 +262,9 @@ public class DimStackEntryEditScreen extends Screen {
                     GuiHelper.layoutButtonHorizontally(horizontalRotationField),
                     GuiHelper.layoutButtonHorizontally(topYField),
                     GuiHelper.layoutButtonHorizontally(bottomYField),
-                    GuiHelper.layoutButtonHorizontally(bedrockBlockField)
+                    GuiHelper.layoutButtonHorizontally(bedrockBlockField),
+                    GuiHelper.layoutButtonHorizontally(connectsPreviousButton),
+                    GuiHelper.layoutButtonHorizontally(connectsNextButton)
                 )
             ),
             GuiHelper.elasticBlankSpace()
@@ -259,8 +280,9 @@ public class DimStackEntryEditScreen extends Screen {
             GuiHelper.elasticBlankSpace()
         );
         
-        helpButton.x = width - 50;
-        helpButton.y = 5;
+        helpButton.setX(width - 50);
+        helpButton.setY(5);
+        helpButton.setWidth(20);
     }
     
     @Override
@@ -269,22 +291,26 @@ public class DimStackEntryEditScreen extends Screen {
     }
     
     @Override
-    public void render(PoseStack matrices, int mouseX, int mouseY, float delta) {
-        this.renderBackground(matrices);
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+        this.renderBackground(guiGraphics, mouseX, mouseY, delta);
         
-        super.render(matrices, mouseX, mouseY, delta);
+        super.render(guiGraphics, mouseX, mouseY, delta);
         
-        scaleField.render(matrices, mouseX, mouseY, delta);
-        horizontalRotationField.render(matrices, mouseX, mouseY, delta);
-        topYField.render(matrices, mouseX, mouseY, delta);
-        bottomYField.render(matrices, mouseX, mouseY, delta);
-        bedrockBlockField.render(matrices, mouseX, mouseY, delta);
+        scaleField.render(guiGraphics, mouseX, mouseY, delta);
+        horizontalRotationField.render(guiGraphics, mouseX, mouseY, delta);
+        topYField.render(guiGraphics, mouseX, mouseY, delta);
+        bottomYField.render(guiGraphics, mouseX, mouseY, delta);
+        bedrockBlockField.render(guiGraphics, mouseX, mouseY, delta);
+        connectsPreviousButton.render(guiGraphics, mouseX, mouseY, delta);
+        connectsNextButton.render(guiGraphics, mouseX, mouseY, delta);
         
-        scaleLabelRect.renderTextLeft(new TranslatableComponent("imm_ptl.scale"), matrices);
-        flipLabelRect.renderTextLeft(new TranslatableComponent("imm_ptl.flipped"), matrices);
-        horizontalRotationLabelRect.renderTextLeft(new TranslatableComponent("imm_ptl.horizontal_rotation"), matrices);
-        topYLabelRect.renderTextLeft(new TranslatableComponent("imm_ptl.top_y"), matrices);
-        bottomYLabelRect.renderTextLeft(new TranslatableComponent("imm_ptl.bottom_y"), matrices);
-        bedrockLabelRect.renderTextLeft(new TranslatableComponent("imm_ptl.bedrock_replacement"), matrices);
+        scaleLabelRect.renderTextLeft(Component.translatable("imm_ptl.scale"), guiGraphics);
+        flipLabelRect.renderTextLeft(Component.translatable("imm_ptl.flipped"), guiGraphics);
+        horizontalRotationLabelRect.renderTextLeft(Component.translatable("imm_ptl.horizontal_rotation"), guiGraphics);
+        topYLabelRect.renderTextLeft(Component.translatable("imm_ptl.top_y"), guiGraphics);
+        bottomYLabelRect.renderTextLeft(Component.translatable("imm_ptl.bottom_y"), guiGraphics);
+        bedrockLabelRect.renderTextLeft(Component.translatable("imm_ptl.bedrock_replacement"), guiGraphics);
+        connectsPreviousRect.renderTextLeft(Component.translatable("imm_ptl.connects_previous"), guiGraphics);
+        connectsNextRect.renderTextLeft(Component.translatable("imm_ptl.connects_next"), guiGraphics);
     }
 }

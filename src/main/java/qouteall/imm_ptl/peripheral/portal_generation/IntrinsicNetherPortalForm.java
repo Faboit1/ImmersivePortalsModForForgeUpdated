@@ -1,26 +1,25 @@
 package qouteall.imm_ptl.peripheral.portal_generation;
 
-import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 import qouteall.imm_ptl.core.IPGlobal;
-import qouteall.imm_ptl.core.McHelper;
-import qouteall.imm_ptl.core.platform_specific.IPRegistry;
 import qouteall.imm_ptl.core.platform_specific.O_O;
 import qouteall.imm_ptl.core.portal.custom_portal_gen.PortalGenInfo;
 import qouteall.imm_ptl.core.portal.custom_portal_gen.form.NetherPortalLikeForm;
 import qouteall.imm_ptl.core.portal.custom_portal_gen.form.PortalGenForm;
 import qouteall.imm_ptl.core.portal.nether_portal.BlockPortalShape;
 import qouteall.imm_ptl.core.portal.nether_portal.BreakablePortalEntity;
+import qouteall.imm_ptl.core.portal.nether_portal.NetherPortalEntity;
 
-import java.util.List;
 import java.util.function.Predicate;
 
 public class IntrinsicNetherPortalForm extends NetherPortalLikeForm {
@@ -36,39 +35,36 @@ public class IntrinsicNetherPortalForm extends NetherPortalLikeForm {
     }
     
     @Override
-    public PortalGenInfo getNewPortalPlacement(ServerLevel toWorld, BlockPos toPos, ServerLevel fromWorld, BlockPortalShape fromShape) {
+    public PortalGenInfo getNewPortalPlacement(
+        ServerLevel toWorld, BlockPos toPos,
+        ServerLevel fromWorld, BlockPortalShape fromShape,
+        @Nullable Entity triggeringEntity
+    ) {
         if (encounteredVanillaPortalBlock) {
             encounteredVanillaPortalBlock = false;
             if (IPGlobal.enableWarning) {
-                List<ServerPlayer> nearbyPlayers = McHelper.findEntitiesRough(
-                    ServerPlayer.class,
-                    fromWorld,
-                    Vec3.atLowerCornerOf(fromShape.anchor),
-                    2,
-                    p -> true
-                );
-                for (ServerPlayer player : nearbyPlayers) {
+                if(triggeringEntity instanceof ServerPlayer player){
                     player.displayClientMessage(
-                        new TranslatableComponent("imm_ptl.cannot_connect_to_vanilla_portal"),
+                        Component.translatable("imm_ptl.cannot_connect_to_vanilla_portal"),
                         false
                     );
                 }
             }
         }
         
-        return super.getNewPortalPlacement(toWorld, toPos, fromWorld, fromShape);
+        return super.getNewPortalPlacement(toWorld, toPos, fromWorld, fromShape, triggeringEntity);
     }
     
     @Override
     public BreakablePortalEntity[] generatePortalEntitiesAndPlaceholder(PortalGenInfo info) {
         info.generatePlaceholderBlocks();
-        BreakablePortalEntity[] portals = info.generateBiWayBiFacedPortal(IPRegistry.NETHER_PORTAL_NEW.get());
+        BreakablePortalEntity[] portals = info.generateBiWayBiFacedPortal(NetherPortalEntity.ENTITY_TYPE);
         
         return portals;
     }
     
-    // not thread safe but mostly fine
-    private static boolean encounteredVanillaPortalBlock = false;
+    // not per-player, but mostly fine
+    private static volatile boolean encounteredVanillaPortalBlock = false;
     
     @Override
     public Predicate<BlockState> getOtherSideFramePredicate() {
@@ -95,7 +91,7 @@ public class IntrinsicNetherPortalForm extends NetherPortalLikeForm {
     }
     
     @Override
-    public Codec<? extends PortalGenForm> getCodec() {
+    public MapCodec<? extends PortalGenForm> getCodec() {
         throw new RuntimeException();
     }
     
