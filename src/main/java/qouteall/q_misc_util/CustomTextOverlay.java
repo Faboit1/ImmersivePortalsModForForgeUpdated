@@ -4,7 +4,8 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.TextAlignment;
 import net.minecraft.client.gui.components.MultiLineLabel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -14,7 +15,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.TreeMap;
 
 /**
- * Make this because {@link Gui#setOverlayMessage(Component, boolean)} does not support multi-line
+ * Make this because the vanilla overlay message does not support multi-line
  */
 //@OnlyIn(Dist.CLIENT)
 public class CustomTextOverlay {
@@ -58,11 +59,7 @@ public class CustomTextOverlay {
         return ENTRIES.remove(key) != null;
     }
     
-    /**
-     * {@link Gui#render(GuiGraphics, float)}
-     * {@link net.minecraft.client.gui.screens.AlertScreen}
-     */
-    public static void render(GuiGraphics guiGraphics, DeltaTracker deltaTracker) {
+    public static void render(GuiGraphicsExtractor graphics) {
         long currTime = System.nanoTime();
         
         boolean removes = ENTRIES.entrySet().removeIf(e -> e.getValue().clearingTime < currTime);
@@ -99,33 +96,28 @@ public class CustomTextOverlay {
         
         Minecraft minecraft = Minecraft.getInstance();
         
-        guiGraphics.pose().pushPose();
-        
         int guiScaledWidth = minecraft.getWindow().getGuiScaledWidth();
         int guiScaledHeight = minecraft.getWindow().getGuiScaledHeight();
         
-        Font font = minecraft.gui.getFont();
-        
         Profiler.get().push("imm_ptl_custom_overlay");
         if (renderAtBottomCenter) {
-            // Note: the parchment names are incorrect
-            multiLineLabelCache.renderCentered(
-                guiGraphics,
+            multiLineLabelCache.visitLines(
+                TextAlignment.CENTER,
                 guiScaledWidth / 2, // x
-                (int) (guiScaledHeight * 0.75) // y
+                (int) (guiScaledHeight * 0.75), // y
+                9, // line height
+                graphics.textRenderer()
             );
         }
         else {
-            multiLineLabelCache.renderLeftAligned(
-                guiGraphics,
+            multiLineLabelCache.visitLines(
+                TextAlignment.LEFT,
                 10, // x
                 10, // y
                 9, // line height
-                0xffffffff // color
+                graphics.textRenderer()
             );
         }
-        
-        guiGraphics.pose().popPose();
         
         Profiler.get().pop();
     }

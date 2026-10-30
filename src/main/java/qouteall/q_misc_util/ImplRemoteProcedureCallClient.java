@@ -6,7 +6,7 @@ import net.minecraft.network.chat.Component;
 
 public class ImplRemoteProcedureCallClient {
     static void clientTellFailure() {
-        Minecraft.getInstance().gui.getChat().addMessage(Component.literal(
+        Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(Component.literal(
                 "The client failed to process a packet from server. See the log for details."
         ).withStyle(ChatFormatting.RED));
     }

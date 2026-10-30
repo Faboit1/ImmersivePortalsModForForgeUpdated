@@ -1,10 +1,8 @@
 package qouteall.q_misc_util.mixin.client;
 
 import net.minecraft.client.DeltaTracker;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.GuiGraphics;
-import org.spongepowered.asm.mixin.Final;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.Hud;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -12,20 +10,20 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.q_misc_util.CustomTextOverlay;
 
-@Mixin(Gui.class)
-public class MixinGui_Overlay {
+@Mixin(Hud.class)
+public abstract class MixinGui_Overlay {
     @Shadow
-    @Final
-    private Minecraft minecraft;
+    public abstract boolean isHidden();
     
     @Inject(
-        method = "render", at = @At("RETURN")
+        method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/DeltaTracker;)V",
+        at = @At("RETURN")
     )
-    private void onRender(
-        GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci
+    private void onExtractRenderState(
+        GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci
     ) {
-        if (!this.minecraft.options.hideGui) {
-            CustomTextOverlay.render(guiGraphics, deltaTracker);
+        if (!isHidden()) {
+            CustomTextOverlay.render(graphics);
         }
     }
 }

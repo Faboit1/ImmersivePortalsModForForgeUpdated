@@ -1708,11 +1708,11 @@ public class Mesh2D {
             
             mesh.addTriangle(
                 pointCoords.getDoubleOr(p0Index * 2, 0),
-                pointCoords.getDouble(p0Index * 2 + 1),
-                pointCoords.getDouble(p1Index * 2),
-                pointCoords.getDouble(p1Index * 2 + 1),
-                pointCoords.getDouble(p2Index * 2),
-                pointCoords.getDouble(p2Index * 2 + 1)
+                pointCoords.getDoubleOr(p0Index * 2 + 1, 0),
+                pointCoords.getDoubleOr(p1Index * 2, 0),
+                pointCoords.getDoubleOr(p1Index * 2 + 1, 0),
+                pointCoords.getDoubleOr(p2Index * 2, 0),
+                pointCoords.getDoubleOr(p2Index * 2 + 1, 0)
             );
         }
         

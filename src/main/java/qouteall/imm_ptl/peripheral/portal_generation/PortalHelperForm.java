@@ -37,10 +37,7 @@ public class PortalHelperForm extends AbstractDiligentForm {
             2,
             e -> true
         ).forEach(player -> {
-            player.displayClientMessage(
-                Component.translatable("imm_ptl.portal_helper_not_linked"),
-                false
-            );
+            player.sendSystemMessage(Component.translatable("imm_ptl.portal_helper_not_linked"));
         });
     }
     

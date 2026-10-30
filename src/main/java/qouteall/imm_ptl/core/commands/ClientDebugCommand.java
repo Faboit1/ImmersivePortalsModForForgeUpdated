@@ -49,13 +49,9 @@ import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.ducks.IEClientWorld;
 import qouteall.imm_ptl.core.ducks.IEEntity;
-import qouteall.imm_ptl.core.ducks.IEWorldRenderer;
 import qouteall.imm_ptl.core.platform_specific.IPConfig;
 import qouteall.imm_ptl.core.platform_specific.O_O;
 import qouteall.imm_ptl.core.portal.Portal;
-import qouteall.imm_ptl.core.render.ForceMainThreadRebuild;
-import qouteall.imm_ptl.core.render.ImmPtlViewArea;
-import qouteall.imm_ptl.core.render.MyGameRenderer;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.imm_ptl.core.teleportation.ClientTeleportationManager;
 import qouteall.q_misc_util.Helper;
@@ -330,23 +326,6 @@ public class ClientDebugCommand {
                 })
         );
         
-        builder.then(Commands
-            .literal("report_rebuild_status")
-            .executes(context -> {
-                Minecraft.getInstance().execute(() -> {
-                    ClientWorldLoader.getClientWorlds().forEach((world) -> {
-                        ImmPtlViewArea builtChunkStorage = (ImmPtlViewArea) ((IEWorldRenderer)
-                            ClientWorldLoader.getWorldRenderer(world.dimension()))
-                            .ip_getBuiltChunkStorage();
-                        CHelper.printChat(
-                            world.dimension().identifier().toString() + builtChunkStorage.getDebugString()
-                        );
-                    });
-                });
-                
-                return 0;
-            })
-        );
 
         builder.then(Commands
             .literal("report_client_light_status")
@@ -390,8 +369,7 @@ public class ClientDebugCommand {
             .literal("reload_world_renderer")
             .executes(context -> {
                 Minecraft.getInstance().execute(() -> {
-                    ClientWorldLoader.disposeRenderHelpers();
-                    Minecraft.getInstance().levelRenderer.allChanged();
+                    ClientWorldLoader.LEVEL_EXTRACTOR_MAP.values().forEach(e -> e.allChanged());
                 });
                 return 0;
             })
@@ -516,17 +494,6 @@ public class ClientDebugCommand {
             })
         );
         
-        builder.then(Commands
-            .literal("force_main_thread_chunk_rebuild")
-            .then(Commands
-                .argument("frameCount", IntegerArgumentType.integer(0, 10000))
-                .executes(context -> {
-                    int frameCount = IntegerArgumentType.getInteger(context, "frameCount");
-                    ForceMainThreadRebuild.forceMainThreadRebuildFor(frameCount);
-                    return 0;
-                })
-            )
-        );
         
         LiteralArgumentBuilder<CommandSourceStack> wandBuilder = Commands.literal("wand");
         registerPortalWandCommands(wandBuilder);
@@ -642,11 +609,6 @@ public class ClientDebugCommand {
             builder,
             "experimental_iris_portal_renderer",
             cond -> IPCGlobal.experimentalIrisPortalRenderer = cond
-        );
-        registerSwitchCommand(
-            builder,
-            "portal_rendering_cave_culling",
-            cond -> MyGameRenderer.enablePortalCaveCulling = cond
         );
         registerSwitchCommand(
             builder,
@@ -824,18 +786,6 @@ public class ClientDebugCommand {
             });
             
             
-            str.append("Chunk Mesh Sections:\n");
-            ClientWorldLoader.WORLD_RENDERER_MAP.forEach(
-                (dimension, worldRenderer) -> {
-                    str.append(String.format(
-                        "%s %s\n",
-                        dimension.identifier(),
-                        ((ImmPtlViewArea) ((IEWorldRenderer) worldRenderer)
-                            .ip_getBuiltChunkStorage()
-                        ).getManagedSectionNum()
-                    ));
-                }
-            );
             
             String result = str.toString();
             

@@ -110,7 +110,7 @@ public class MixinPlayerList {
         double x, double y, double z, double distance,
         ResourceKey<Level> dimension, Packet<?> packet
     ) {
-        ChunkPos chunkPos = new ChunkPos(BlockPos.containing(new Vec3(x, y, z)));
+        ChunkPos chunkPos = ChunkPos.containing(BlockPos.containing(new Vec3(x, y, z)));
         
         var recs =
             ImmPtlChunkTracking.getWatchRecordForChunk(dimension, chunkPos.x(), chunkPos.z());

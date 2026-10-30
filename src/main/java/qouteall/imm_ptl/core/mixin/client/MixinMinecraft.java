@@ -28,7 +28,6 @@ import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.ducks.IEMinecraftClient;
 import qouteall.imm_ptl.core.miscellaneous.ClientPerformanceMonitor;
-import qouteall.imm_ptl.core.miscellaneous.IPortalInitialScreen;
 import qouteall.imm_ptl.core.platform_specific.IPConfig;
 import qouteall.imm_ptl.core.portal.animation.ClientPortalAnimationManagement;
 import qouteall.imm_ptl.core.portal.animation.StableClientTimer;
@@ -41,30 +40,12 @@ import java.util.function.Function;
 
 @Mixin(Minecraft.class)
 public abstract class MixinMinecraft implements IEMinecraftClient {
-    @Final
-    @Shadow
-    @Mutable
-    private RenderTarget mainRenderTarget;
-    
-    @Shadow
-    public Screen screen;
-    
-    @Mutable
-    @Shadow
-    @Final
-    public LevelRenderer levelRenderer;
-    
     @Shadow
     private static int fps;
     
     @Shadow
     @Nullable
     public ClientLevel level;
-    
-    @Mutable
-    @Shadow
-    @Final
-    private RenderBuffers renderBuffers;
     
     @Shadow
     @Final
@@ -155,10 +136,10 @@ public abstract class MixinMinecraft implements IEMinecraftClient {
     }
     
     @Inject(
-        method = "Lnet/minecraft/client/Minecraft;updateLevelInEngines(Lnet/minecraft/client/multiplayer/ClientLevel;)V",
+        method = "Lnet/minecraft/client/Minecraft;updateLevelInEngines(Lnet/minecraft/client/multiplayer/ClientLevel;Z)V",
         at = @At("HEAD")
     )
-    private void onSetWorld(ClientLevel clientLevel, CallbackInfo ci) {
+    private void onSetWorld(ClientLevel clientLevel, boolean stopSound, CallbackInfo ci) {
         if (ClientWorldLoader.getIsInitialized()) {
             LOGGER.info("Client cleanup");
             IPEventBus.EVENT_BUS.post(new ClientCleanupEvent());
@@ -173,45 +154,6 @@ public abstract class MixinMinecraft implements IEMinecraftClient {
         else {
             LOGGER.info("Client world updated but not counted as cleanup");
         }
-    }
-    
-    //avoid messing up rendering states in fabulous
-    @Inject(method = "Lnet/minecraft/client/Minecraft;useShaderTransparency()Z", at = @At("HEAD"), cancellable = true)
-    private static void onIsFabulousGraphicsOrBetter(CallbackInfoReturnable<Boolean> cir) {
-        if (WorldRenderInfo.isRendering()) {
-            cir.setReturnValue(false);
-        }
-    }
-    
-    @Inject(
-        method = "addInitialScreens",
-        at = @At("RETURN")
-    )
-    private void onAddInitialScreens(List<Function<Runnable, Screen>> output, CallbackInfo ci) {
-        IPConfig config = IPConfig.getConfig();
-        if (!config.initialScreenShown) {
-            output.add(IPortalInitialScreen::new);
-        }
-    }
-    
-    @Override
-    public void ip_setFrameBuffer(RenderTarget buffer) {
-        mainRenderTarget = buffer;
-    }
-    
-    @Override
-    public Screen ip_getCurrentScreen() {
-        return screen;
-    }
-    
-    @Override
-    public void ip_setWorldRenderer(LevelRenderer r) {
-        levelRenderer = r;
-    }
-    
-    @Override
-    public void ip_setRenderBuffers(RenderBuffers arg) {
-        renderBuffers = arg;
     }
     
     @Override

@@ -1,5 +1,7 @@
 package qouteall.imm_ptl.peripheral.dim_stack;
 
+import qouteall.q_misc_util.my_util.IPPermissions;
+
 import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
 import de.nick1st.imm_ptl.events.DimensionEvents;
@@ -148,7 +150,7 @@ public class DimStackManagement {
                             chunk.setBlockState(
                                 mutable,
                                 replacement,
-                                false
+                                0
                             );
                         }
                     }
@@ -164,7 +166,7 @@ public class DimStackManagement {
         
         Collection<ResourceKey<Level>> extra =
             IPEventBus.EVENT_BUS.post(new DimensionStackAPI.DimensionStackCandidateCollectionEvent(server.registryAccess(),
-                    server.getWorldData().worldGenOptions())).getDimensionsResult();
+                    server.getWorldGenSettings().options())).getDimensionsResult();
         
         result.addAll(extra);
         
@@ -187,35 +189,18 @@ public class DimStackManagement {
     public static class RemoteCallables {
         //@OnlyIn(Dist.CLIENT)
         public static void clientOpenScreen(List<String> dimensions) {
-            List<ResourceKey<Level>> dimensionList =
-                dimensions.stream().map(Helper::dimIdToKey).collect(Collectors.toList());
-            
-            DimStackGuiController controller = new DimStackGuiController(
-                null,
-                () -> dimensionList,
-                dimStackInfo -> {
-                    if (dimStackInfo != null) {
-                        McRemoteProcedureCallClient.tellServerToInvoke(
-                            "qouteall.imm_ptl.peripheral.dim_stack.DimStackManagement.RemoteCallables.serverSetupDimStack",
-                            dimStackInfo
-                        );
-                    }
-                    else {
-                        McRemoteProcedureCallClient.tellServerToInvoke(
-                            "qouteall.imm_ptl.peripheral.dim_stack.DimStackManagement.RemoteCallables.serverRemoveDimStack"
-                        );
-                    }
-                    Minecraft.getInstance().setScreen(null);
-                }
-            );
-            controller.initializeAsDefault();
-            Minecraft.getInstance().setScreen(controller.view);
+            // the dimension stack GUI has not been ported to the Minecraft 26 GUI system yet
+            Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(Component.literal(
+                "The dimension stack screen is not available in this version. " +
+                    "Configure the dimension stack with \"dimStackPreset\" in config/immersive_portals.json. " +
+                    "Available dimensions: " + String.join(", ", dimensions)
+            ));
         }
         
         public static void serverSetupDimStack(
             ServerPlayer player, DimStackInfo dimStackInfo
         ) {
-            if (!player.hasPermissions(2)) {
+            if (!player.permissions().hasPermission(IPPermissions.level(2))) {
                 player.sendSystemMessage(Component.literal(
                     "You don't have permission to change dimension stack"
                 ));
@@ -233,16 +218,13 @@ public class DimStackManagement {
             
             updateDimStack(server, dimStackInfo);
             
-            player.displayClientMessage(
-                Component.translatable("imm_ptl.dim_stack_established"),
-                false
-            );
+            player.sendSystemMessage(Component.translatable("imm_ptl.dim_stack_established"));
         }
         
         public static void serverRemoveDimStack(
             ServerPlayer player
         ) {
-            if (!player.hasPermissions(2)) {
+            if (!player.permissions().hasPermission(IPPermissions.level(2))) {
                 Helper.err("one player without permission tries to change dimension stack");
                 return;
             }
@@ -251,10 +233,7 @@ public class DimStackManagement {
             
             clearDimStackPortals(server);
             
-            player.displayClientMessage(
-                Component.translatable("imm_ptl.dim_stack_removed"),
-                false
-            );
+            player.sendSystemMessage(Component.translatable("imm_ptl.dim_stack_removed"));
             
             // on dedicated server, the preset should be consistent with the current dimension stack
             // because it will try to apply dimension stack preset when initializing the server

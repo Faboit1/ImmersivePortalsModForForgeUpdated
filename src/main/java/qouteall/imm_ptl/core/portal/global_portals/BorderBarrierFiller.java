@@ -37,7 +37,7 @@ public class BorderBarrierFiller {
         ).findFirst().orElse(null);
         
         if (zone == null) {
-            player.displayClientMessage(Component.translatable("imm_ptl.cannot_find_zone"), false);
+            player.sendSystemMessage(Component.translatable("imm_ptl.cannot_find_zone"));
             return;
         }
         
@@ -58,7 +58,7 @@ public class BorderBarrierFiller {
         ).findFirst().orElse(null);
         
         if (zone == null) {
-            player.displayClientMessage(Component.translatable("imm_ptl.cannot_find_zone"), false);
+            player.sendSystemMessage(Component.translatable("imm_ptl.cannot_find_zone"));
             return;
         }
         
@@ -82,24 +82,18 @@ public class BorderBarrierFiller {
             // according to my test 80000 columns increase world saving by 465 MB
             double sizeEstimationGB = (totalColumns / 80000.0) * 0.5;
             
-            player.displayClientMessage(
-                Component.translatable(
+            player.sendSystemMessage(Component.translatable(
                     "imm_ptl.clear_border_warning",
                     sizeEstimationGB < 0.01 ? 0 : sizeEstimationGB
-                ),
-                false
-            );
+                ));
         }
         else {
             warnedPlayers.remove(player);
             
-            player.displayClientMessage(
-                Component.translatable("imm_ptl.start_clearing_border"),
-                false
-            );
+            player.sendSystemMessage(Component.translatable("imm_ptl.start_clearing_border"));
             
             
-            startFillingBorder(world, borderBox, l -> player.displayClientMessage(l, false));
+            startFillingBorder(world, borderBox, l -> player.sendSystemMessage(l));
         }
     }
     
@@ -138,7 +132,7 @@ public class BorderBarrierFiller {
                 ChunkAccess chunk = world.getChunk(columnPos);
                 for (int y = minY; y < maxYEx; y++) {
                     temp1.set(columnPos.getX(), y, columnPos.getZ());
-                    chunk.setBlockState(temp1, Blocks.AIR.defaultBlockState(), false);
+                    chunk.setBlockState(temp1, Blocks.AIR.defaultBlockState(), 0);
                     lightingProvider.checkBlock(temp1);
                 }
                 

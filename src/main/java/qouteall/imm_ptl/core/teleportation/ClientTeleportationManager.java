@@ -32,8 +32,6 @@ import qouteall.imm_ptl.core.compat.GravityChangerInterface;
 import qouteall.imm_ptl.core.ducks.IEAbstractClientPlayer;
 import qouteall.imm_ptl.core.ducks.IEClientPlayNetworkHandler;
 import qouteall.imm_ptl.core.ducks.IEEntity;
-import qouteall.imm_ptl.core.ducks.IEGameRenderer;
-import qouteall.imm_ptl.core.ducks.IEMinecraftClient;
 import qouteall.imm_ptl.core.ducks.IEParticleManager;
 import qouteall.imm_ptl.core.network.ImmPtlNetworking;
 import qouteall.imm_ptl.core.network.PacketRedirectionClient;
@@ -42,10 +40,7 @@ import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalExtension;
 import qouteall.imm_ptl.core.portal.animation.ClientPortalAnimationManagement;
 import qouteall.imm_ptl.core.portal.animation.StableClientTimer;
-import qouteall.imm_ptl.core.render.FrontClipping;
-import qouteall.imm_ptl.core.render.MyGameRenderer;
 import qouteall.imm_ptl.core.render.TransformationManager;
-import qouteall.imm_ptl.core.render.context_management.FogRendererContext;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
 import qouteall.q_misc_util.Helper;
@@ -417,7 +412,6 @@ public class ClientTeleportationManager {
         isTeleportingTick = true;
         isTeleportingFrame = true;
         
-        MyGameRenderer.vanillaTerrainSetupOverride = 1;
     }
     
     
@@ -446,7 +440,6 @@ public class ClientTeleportationManager {
         lastPlayerEyePos = null;
         
         RenderStates.updatePreRenderInfo(RenderStates.getPartialTick());
-        MyGameRenderer.vanillaTerrainSetupOverride = 1;
     }
     
     /**
@@ -456,7 +449,6 @@ public class ClientTeleportationManager {
         LocalPlayer player, ClientLevel fromWorld, ClientLevel toWorld, Vec3 newEyePos
     ) {
         Validate.isTrue(!WorldRenderInfo.isRendering());
-        Validate.isTrue(!FrontClipping.isClippingEnabled);
         Validate.isTrue(!PacketRedirectionClient.getIsProcessingRedirectedMessage());
         
         Entity vehicle = player.getVehicle();
@@ -479,21 +471,17 @@ public class ClientTeleportationManager {
         toWorld.addEntity(player);
         ((IEAbstractClientPlayer) player).ip_setClientLevel(toWorld);
         
-        IEGameRenderer gameRenderer = (IEGameRenderer) Minecraft.getInstance().gameRenderer;
-        gameRenderer.ip_setLightmapTextureManager(ClientWorldLoader
-            .getDimensionRenderHelper(toDimension).lightmapTexture);
-        
         client.level = toWorld;
-        ((IEMinecraftClient) client).ip_setWorldRenderer(
-            ClientWorldLoader.getWorldRenderer(toDimension)
-        );
+        // the fields are made non-final by access transformer
+        client.levelRenderer = ClientWorldLoader.getWorldRenderer(toDimension);
+        client.levelExtractor = ClientWorldLoader.getLevelExtractor(toDimension);
+        // updates the main camera's level and the dimension's cardinal lighting
+        client.gameRenderer.setLevel(toWorld);
         
         if (client.particleEngine != null) {
             // avoid clearing all particles
             ((IEParticleManager) client.particleEngine).ip_setWorld(toWorld);
         }
-        
-        client.getBlockEntityRenderDispatcher().setLevel(toWorld);
         
         if (vehicle != null) {
             Vec3 offset = McHelper.getVehicleOffsetFromPassenger(vehicle, player);
@@ -507,7 +495,7 @@ public class ClientTeleportationManager {
                 player.position().add(offset),
                 McHelper.lastTickPosOf(player).add(offset)
             );
-            player.startRiding(vehicle, true);
+            player.startRiding(vehicle, true, false);
         }
         
         Helper.log(String.format(
@@ -517,8 +505,6 @@ public class ClientTeleportationManager {
             tickTimeForTeleportation,
             player.tickCount
         ));
-        
-        FogRendererContext.onPlayerTeleport(fromDimension, toDimension);
         
         O_O.onPlayerChangeDimensionClient(fromDimension, toDimension);
     }
@@ -707,11 +693,10 @@ public class ClientTeleportationManager {
             
             // both of them are important for Minecart
             entity.setPos(pos);
-            entity.lerpTo(
-                pos.x, pos.y, pos.z,
-                entity.getYRot(), entity.getXRot(),
-                0
-            );
+            net.minecraft.world.entity.InterpolationHandler interpolation = entity.getInterpolation();
+            if (interpolation != null) {
+                interpolation.cancel();
+            }
             entity.setPos(pos);
         }
     }

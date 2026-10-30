@@ -228,14 +228,8 @@ public class TransformationManager {
     }
     
     private static void updateCamera(Minecraft client) {
-        Camera camera = client.gameRenderer.getMainCamera();
-        camera.setup(
-            client.level,
-            client.player,
-            !client.options.getCameraType().isFirstPerson(),
-            client.options.getCameraType().isMirrored(),
-            RenderStates.getPartialTick()
-        );
+        Camera camera = client.gameRenderer.mainCamera();
+        camera.update(client.getDeltaTracker());
     }
     
     public static Matrix4f getMirrorTransformation(Vec3 normal) {
@@ -302,12 +296,12 @@ public class TransformationManager {
     
     // isometric is equivalent to the camera being in infinitely far place
     public static Vec3 getIsometricAdjustedCameraPos() {
-        Camera camera = client.gameRenderer.getMainCamera();
+        Camera camera = client.gameRenderer.mainCamera();
         return getIsometricAdjustedCameraPos(camera);
     }
     
     public static Vec3 getIsometricAdjustedCameraPos(Camera camera) {
-        Vec3 cameraPos = camera.getPosition();
+        Vec3 cameraPos = camera.position();
         
         if (!isIsometricView) {
             return cameraPos;

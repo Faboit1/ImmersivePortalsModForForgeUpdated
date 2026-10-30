@@ -1,8 +1,15 @@
 package qouteall.imm_ptl.core.portal;
 
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.server.level.ServerEntity;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
+import qouteall.q_misc_util.my_util.NbtBridge;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.level.storage.ValueInput;
 import com.mojang.logging.LogUtils;
 import de.nick1st.imm_ptl.events.*;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
@@ -20,7 +27,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.vehicle.AbstractMinecart;
+import net.minecraft.world.entity.vehicle.minecart.AbstractMinecart;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
@@ -219,6 +226,10 @@ public class Portal extends Entity implements
     }
 
     @Override
+    protected void readAdditionalSaveData(ValueInput input) {
+        readAdditionalSaveData(NbtBridge.readAll(input));
+    }
+    
     protected void readAdditionalSaveData(CompoundTag compoundTag) {
         width = compoundTag.getDoubleOr("width", 0);
         height = compoundTag.getDoubleOr("height", 0);
@@ -279,9 +290,9 @@ public class Portal extends Entity implements
         if (compoundTag.contains("rotationA")) {
             setRotationTransformationD(new DQuaternion(
                 compoundTag.getFloatOr("rotationB", 0),
-                compoundTag.getFloat("rotationC"),
-                compoundTag.getFloat("rotationD"),
-                compoundTag.getFloat("rotationA")
+                compoundTag.getFloatOr("rotationC", 0),
+                compoundTag.getFloatOr("rotationD", 0),
+                compoundTag.getFloatOr("rotationA", 0)
             ));
         }
         else {
@@ -324,7 +335,7 @@ public class Portal extends Entity implements
         if (compoundTag.contains("commandsOnTeleported")) {
             ListTag list = compoundTag.getListOrEmpty("commandsOnTeleported");
             commandsOnTeleported = list.stream()
-                .map(t -> ((StringTag) t).getAsString()).collect(Collectors.toList());
+                .map(t -> ((StringTag) t).value()).collect(Collectors.toList());
         }
         else {
             commandsOnTeleported = null;
@@ -352,6 +363,12 @@ public class Portal extends Entity implements
     }
     
     @Override
+    protected void addAdditionalSaveData(ValueOutput output) {
+        CompoundTag compoundTag = new CompoundTag();
+        addAdditionalSaveData(compoundTag);
+        NbtBridge.writeAll(output, compoundTag);
+    }
+    
     protected void addAdditionalSaveData(CompoundTag compoundTag) {
         compoundTag.putDouble("width", width);
         compoundTag.putDouble("height", height);
@@ -883,9 +900,12 @@ public class Portal extends Entity implements
         );
     }
 
+    /**
+     * The portal is spawned on client by the ImmPtl sync packet instead of the vanilla add entity packet.
+     */
     @Override
-    public void sendPairingData(@NotNull ServerPlayer serverPlayer, Consumer<CustomPacketPayload> payloadConsumer) {
-        payloadConsumer.accept(createSyncPacket());
+    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket(@NotNull ServerEntity serverEntity) {
+        return IPPayloadRegistry.createS2CPacket(createSyncPacket());
     }
     
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -939,8 +959,9 @@ public class Portal extends Entity implements
         super.tick();
     }
     
+    // the portal's bounding box is determined by its shape and orientation
     @Override
-    protected @NotNull AABB makeBoundingBox() {
+    protected @NotNull AABB makeBoundingBox(@NotNull Vec3 position) {
         if (axisW == null) {
             // it may be called when the portal is not yet initialized
             boundingBoxCache = null;
@@ -1857,7 +1878,7 @@ public class Portal extends Entity implements
         
         return McHelper.isServerChunkFullyLoaded(
             (ServerLevel) getDestWorld(),
-            new ChunkPos(BlockPos.containing(getDestPos()))
+            ChunkPos.containing(BlockPos.containing(getDestPos()))
         );
     }
     

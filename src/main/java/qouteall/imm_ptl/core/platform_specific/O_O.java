@@ -87,12 +87,12 @@ public class O_O {
 //    }
     
     public static boolean getIsPehkuiPresent() {
-        return ModList.get().isLoaded("pehkui");
+        return ModList.isLoaded("pehkui");
     }
     
     @Nullable
     public static String getImmPtlModInfoUrl() {
-        String gameVersion = SharedConstants.getCurrentVersion().getName();
+        String gameVersion = SharedConstants.getCurrentVersion().name();
         
         if (O_O.isForge()) {
             return "https://qouteall.fun/immptl_info/forge-%s.json".formatted(gameVersion);
@@ -105,7 +105,7 @@ public class O_O {
     }
     
     public static boolean isModLoadedWithinVersion(String modId, @Nullable String startVersion, @Nullable String endVersion) {
-        Optional<? extends ModContainer> modContainer = ModList.get().getModContainerById(modId);
+        Optional<? extends ModContainer> modContainer = ModList.getModContainerById(modId);
         if (modContainer.isPresent()) {
             ArtifactVersion version = modContainer.get().getModInfo().getVersion();
             
@@ -137,7 +137,7 @@ public class O_O {
     }
     
     private static Optional<ArtifactVersion> getOwnVersion() {
-        return ModList.get().getModContainerById(IPModEntry.MODID)
+        return ModList.getModContainerById(IPModEntry.MODID)
             .map(c -> c.getModInfo().getVersion());
     }
     
@@ -213,7 +213,7 @@ public class O_O {
     
     @Nullable
     public static String getModName(String modid) {
-        return ModList.get().getModContainerById(modid)
+        return ModList.getModContainerById(modid)
             .map(c -> c.getModInfo().getDisplayName())
             .orElse(null);
     }
@@ -225,7 +225,7 @@ public class O_O {
     }
     
     public static List<String> getLoadedModIds() {
-        return ModList.get().getSortedMods().stream().map(ModContainer::getModId).sorted().toList();
+        return ModList.getMods().stream().map(net.minecraftforge.forgespi.language.IModInfo::getModId).sorted().toList();
     }
 
     public static boolean allowTeleportingEntity(Entity entity, Portal portal) {

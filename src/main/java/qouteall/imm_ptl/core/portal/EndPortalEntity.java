@@ -9,12 +9,12 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.*;
-import net.minecraft.world.entity.projectile.Arrow;
+import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.EndPortalBlock;
-import net.minecraft.world.level.dimension.end.EndDragonFight;
+import net.minecraft.world.level.dimension.end.EnderDragonFight;
 import net.minecraft.world.level.levelgen.feature.EndPlatformFeature;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -82,7 +82,7 @@ public class EndPortalEntity extends Portal {
         doCreateEndPlatform(world);
         
         // update dragon fight info
-        EndDragonFight dragonFight = world.getDragonFight();
+        EnderDragonFight dragonFight = world.getDragonFight();
         if (dragonFight == null) {
             return;
         }
@@ -96,7 +96,7 @@ public class EndPortalEntity extends Portal {
      */
     private static void doCreateEndPlatform(ServerLevel world) {
         EndPlatformFeature.createEndPlatform(
-            world, BlockPos.containing(ServerLevel.END_SPAWN_POINT.getBottomCenter()).below(),
+            world, BlockPos.containing(net.minecraft.world.phys.Vec3.atBottomCenterOf(ServerLevel.END_SPAWN_POINT)).below(),
             true
         );
     }

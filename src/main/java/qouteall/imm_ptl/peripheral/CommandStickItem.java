@@ -1,5 +1,7 @@
 package qouteall.imm_ptl.peripheral;
 
+import qouteall.q_misc_util.my_util.IPPermissions;
+
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.mojang.logging.LogUtils;
@@ -80,14 +82,11 @@ public class CommandStickItem extends Item {
         
         public static Data deserialize(CompoundTag tag) {
             return new Data(
-                tag.getString("command"),
-                tag.getString("nameTranslationKey"),
-                tag.getList(
-                        "descriptionTranslationKeys",
-                        StringTag.valueOf("").getId()
-                    )
+                tag.getStringOr("command", ""),
+                tag.getStringOr("nameTranslationKey", ""),
+                tag.getListOrEmpty("descriptionTranslationKeys")
                     .stream()
-                    .map(Tag::getAsString)
+                    .map(t -> t.asString().orElse(""))
                     .collect(Collectors.toList())
             );
         }
@@ -128,7 +127,7 @@ public class CommandStickItem extends Item {
                 return;
             }
 
-            CommandSourceStack commandSource = player.createCommandSourceStackForNameResolution((ServerLevel) level).withPermission(2);
+            CommandSourceStack commandSource = player.createCommandSourceStackForNameResolution((ServerLevel) level).withPermission(net.minecraft.server.permissions.LevelBasedPermissionSet.GAMEMASTER);
 
             MinecraftServer server = player.level().getServer();
             assert server != null;
@@ -153,16 +152,17 @@ public class CommandStickItem extends Item {
             return true;// any player regardless of gamemode can use
         }
         else {
-            return player.hasPermissions(2) || player.isCreative();
+            return player.permissions().hasPermission(IPPermissions.level(2)) || player.isCreative();
         }
     }
     
     @Override
     public void appendHoverText(
-            @NotNull ItemStack stack, Item.@NotNull TooltipContext tooltipContext,
-            @NotNull List<Component> tooltip, @NotNull TooltipFlag tooltipFlag
+        ItemStack stack, Item.TooltipContext tooltipContext,
+        net.minecraft.world.item.component.TooltipDisplay tooltipDisplay,
+        java.util.function.Consumer<Component> tooltip, TooltipFlag tooltipFlag
     ) {
-        super.appendHoverText(stack, tooltipContext, tooltip, tooltipFlag);
+        super.appendHoverText(stack, tooltipContext, tooltipDisplay, tooltip, tooltipFlag);
 
         Data data = stack.get(componentType());
 
@@ -173,14 +173,14 @@ public class CommandStickItem extends Item {
         Iterable<String> splitCommand = Splitter.fixedLength(40).split(data.command);
         
         for (String commandPortion : splitCommand) {
-            tooltip.add(Component.literal(commandPortion).withStyle(ChatFormatting.GOLD));
+            tooltip.accept(Component.literal(commandPortion).withStyle(ChatFormatting.GOLD));
         }
         
         for (String descriptionTranslationKey : data.descriptionTranslationKeys) {
-            tooltip.add(Component.translatable(descriptionTranslationKey).withStyle(ChatFormatting.AQUA));
+            tooltip.accept(Component.translatable(descriptionTranslationKey).withStyle(ChatFormatting.AQUA));
         }
         
-        tooltip.add(Component.translatable("imm_ptl.command_stick").withStyle(ChatFormatting.GRAY));
+        tooltip.accept(Component.translatable("imm_ptl.command_stick").withStyle(ChatFormatting.GRAY));
     }
 
     // TODO @Nick1st 21.3

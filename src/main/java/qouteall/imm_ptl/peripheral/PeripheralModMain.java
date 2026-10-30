@@ -40,7 +40,7 @@ public class PeripheralModMain {
                 
                 CommandStickItem.addIntoCreativeTag(entries);
 
-                entries.accept(PORTAL_HELPER_ITEM.get());
+                entries.accept(PeripheralModMain.PORTAL_HELPER_ITEM.get());
             })
             .build();
     

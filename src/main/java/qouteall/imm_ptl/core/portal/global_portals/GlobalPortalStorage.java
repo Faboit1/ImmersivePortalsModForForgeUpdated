@@ -24,6 +24,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
+import qouteall.q_misc_util.my_util.NbtBridge;
 import qouteall.q_misc_util.event.IPEventBus;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.NotNull;
@@ -91,21 +93,25 @@ public class GlobalPortalStorage extends SavedData {
     public static GlobalPortalStorage get(
         ServerLevel world
     ) {
-        return world.getDataStorage().computeIfAbsent(
-            new SavedData.Factory<>(
-                () -> {
-                    LOGGER.info("Global portal storage initialized {}", world.dimension().identifier());
-                    return new GlobalPortalStorage(world);
-                },
-                (nbt, holderLookup) -> {
+        // the codec has to create the storage object with the world reference,
+        // so each world has its own SavedDataType (they are equal by id)
+        SavedDataType<GlobalPortalStorage> type = new SavedDataType<>(
+            McHelper.newIdentifier("immersive_portals", "global_portal"),
+            () -> {
+                LOGGER.info("Global portal storage initialized {}", world.dimension().identifier());
+                return new GlobalPortalStorage(world);
+            },
+            CompoundTag.CODEC.xmap(
+                nbt -> {
                     GlobalPortalStorage globalPortalStorage = new GlobalPortalStorage(world);
                     globalPortalStorage.fromNbt(nbt);
                     return globalPortalStorage;
                 },
-                null
+                storage -> storage.save(new CompoundTag(), world.registryAccess())
             ),
-            "global_portal"
+            null
         );
+        return world.getDataStorage().computeIfAbsent(type);
     }
 
     //@OnlyIn(Dist.CLIENT)
@@ -247,7 +253,7 @@ public class GlobalPortalStorage extends SavedData {
         EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.get(entityId).get().value();
         
         Entity e = entityType.create(currWorld, EntitySpawnReason.LOAD);
-        e.load(compoundTag);
+        NbtBridge.loadEntity(e, compoundTag);
         
         ((Portal) e).isGlobalPortal = true;
         
@@ -258,7 +264,6 @@ public class GlobalPortalStorage extends SavedData {
         return (Portal) e;
     }
     
-    @Override
     public @NotNull CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         if (data == null) {
             return tag;
@@ -270,8 +275,7 @@ public class GlobalPortalStorage extends SavedData {
         
         for (Portal portal : data) {
             Validate.isTrue(portal.level() == currWorld);
-            CompoundTag portalTag = new CompoundTag();
-            portal.saveWithoutId(portalTag);
+            CompoundTag portalTag = NbtBridge.saveEntityWithoutId(portal);
             portalTag.putString(
                 "entity_type",
                 EntityType.getKey(portal.getType()).toString()

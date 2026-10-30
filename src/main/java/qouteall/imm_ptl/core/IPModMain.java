@@ -23,7 +23,6 @@ import qouteall.imm_ptl.core.chunk_loading.ServerPerformanceMonitor;
 import qouteall.imm_ptl.core.chunk_loading.WorldInfoSender;
 import qouteall.imm_ptl.core.collision.CollisionHelper;
 import qouteall.imm_ptl.core.commands.PortalCommand;
-import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.debug.DebugUtil;
 import qouteall.imm_ptl.core.mc_utils.ServerTaskList;
 import qouteall.imm_ptl.core.miscellaneous.GcMonitor;
@@ -97,7 +96,6 @@ public class IPModMain {
         
         ImmPtlChunkTickets.init();
         
-        IPPortingLibCompat.init();
         
         BlockManipulationServer.init();
 

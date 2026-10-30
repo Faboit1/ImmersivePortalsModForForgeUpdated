@@ -8,7 +8,6 @@ import com.mojang.serialization.Codec;
 import de.nick1st.imm_ptl.events.ClientCleanupEvent;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -215,16 +214,17 @@ public class PortalWandItem extends Item {
     @Override
     public void appendHoverText(
         ItemStack stack, Item.TooltipContext tooltipContext,
-        List<Component> tooltip, TooltipFlag tooltipFlag
+        net.minecraft.world.item.component.TooltipDisplay tooltipDisplay,
+        java.util.function.Consumer<Component> tooltip, TooltipFlag tooltipFlag
     ) {
-        super.appendHoverText(stack, tooltipContext, tooltip, tooltipFlag);
+        super.appendHoverText(stack, tooltipContext, tooltipDisplay, tooltip, tooltipFlag);
         
-        tooltip.add(Component.translatable(
+        tooltip.accept(Component.translatable(
             "imm_ptl.wand.item_desc_1",
             Minecraft.getInstance().options.keyShift.getTranslatedKeyMessage(),
             Minecraft.getInstance().options.keyUse.getTranslatedKeyMessage()
         ));
-        tooltip.add(Component.translatable(
+        tooltip.accept(Component.translatable(
             "imm_ptl.wand.item_desc_2",
             Minecraft.getInstance().options.keyShift.getTranslatedKeyMessage(),
             Minecraft.getInstance().options.keyAttack.getTranslatedKeyMessage()
@@ -243,8 +243,8 @@ public class PortalWandItem extends Item {
     }
     
     public static void showSettings(Player player) {
-        player.displayClientMessage(Component.translatable("imm_ptl.wand.settings_1"), false);
-        player.displayClientMessage(Component.translatable("imm_ptl.wand.settings_alignment"), false);
+        player.sendSystemMessage(Component.translatable("imm_ptl.wand.settings_1"));
+        player.sendSystemMessage(Component.translatable("imm_ptl.wand.settings_alignment"));
         
         int[] alignments = new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 32, 64};
         
@@ -262,13 +262,11 @@ public class PortalWandItem extends Item {
             "/imm_ptl_client_debug wand set_cursor_alignment 0"
         ));
         
-        player.displayClientMessage(
-            alignmentSettingTexts.stream().reduce(Component.literal(""), (a, b) -> a.append(" ").append(b)), false
-        );
+        player.sendSystemMessage(alignmentSettingTexts.stream().reduce(Component.literal(""), (a, b) -> a.append(" ").append(b)));
         
-        player.displayClientMessage(Component.translatable(
+        player.sendSystemMessage(Component.translatable(
             "imm_ptl.wand.settings_2", Minecraft.getInstance().options.keyChat.getTranslatedKeyMessage()
-        ), false);
+        ));
     }
     
     private static boolean instructionInformed = false;
@@ -285,27 +283,6 @@ public class PortalWandItem extends Item {
     }
     
     //@OnlyIn(Dist.CLIENT)
-    public static void clientRender(
-        net.minecraft.client.player.LocalPlayer player, ItemStack itemStack, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-        double camX, double camY, double camZ
-    ) {
-        if (!instructionInformed) {
-            instructionInformed = true;
-        }
-        
-        Mode mode = itemStack.getOrDefault(componentType(), Mode.FALLBACK);
-        
-        switch (mode) {
-            case CREATE_PORTAL -> ClientPortalWandPortalCreation.render(
-                poseStack, bufferSource, camX, camY, camZ
-            );
-            case DRAG_PORTAL -> ClientPortalWandPortalDrag.render(
-                poseStack, bufferSource, camX, camY, camZ
-            );
-            case COPY_PORTAL -> ClientPortalWandPortalCopy.render(
-                poseStack, bufferSource, camX, camY, camZ
-            );
-        }
-    }
+
     
 }

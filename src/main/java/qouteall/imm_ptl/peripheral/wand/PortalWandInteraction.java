@@ -1,5 +1,7 @@
 package qouteall.imm_ptl.peripheral.wand;
 
+import qouteall.q_misc_util.my_util.IPPermissions;
+
 import net.minecraftforge.event.TickEvent;
 
 import com.mojang.logging.LogUtils;
@@ -530,7 +532,7 @@ public class PortalWandInteraction {
     }
     
     private static boolean canPlayerUsePortalWand(ServerPlayer player) {
-        return player.hasPermissions(2)
+        return player.permissions().hasPermission(IPPermissions.level(2))
             || (IPGlobal.easeCreativePermission && player.isCreative())
             || (IPConfig.getConfig().portalWandUsableOnSurvivalMode
             && player.gameMode.getGameModeForPlayer() == GameType.SURVIVAL);

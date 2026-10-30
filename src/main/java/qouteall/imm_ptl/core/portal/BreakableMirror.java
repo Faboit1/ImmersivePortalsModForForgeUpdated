@@ -47,13 +47,13 @@ public class BreakableMirror extends Mirror {
             wallArea = new IntBox(
                 new BlockPos(
                     tag.getIntOr("boxXL", 0),
-                    tag.getInt("boxYL"),
-                    tag.getInt("boxZL")
+                    tag.getIntOr("boxYL", 0),
+                    tag.getIntOr("boxZL", 0)
                 ),
                 new BlockPos(
                     tag.getIntOr("boxXH", 0),
-                    tag.getInt("boxYH"),
-                    tag.getInt("boxZH")
+                    tag.getIntOr("boxYH", 0),
+                    tag.getIntOr("boxZH", 0)
                 )
             );
         }

@@ -180,8 +180,4 @@ public final class IPPayloadRegistry {
      */
     public static void init() {}
 
-    @SuppressWarnings("unused")
-    private static boolean isPacketListenerAcceptingMessages(PacketListener listener) {
-        return listener.isAcceptingMessages();
-    }
 }

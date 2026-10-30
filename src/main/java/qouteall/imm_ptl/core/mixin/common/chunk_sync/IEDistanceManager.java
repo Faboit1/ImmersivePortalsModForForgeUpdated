@@ -12,9 +12,6 @@ import java.util.concurrent.Executor;
 
 @Mixin(DistanceManager.class)
 public interface IEDistanceManager {
-    @Accessor("tickets")
-    Long2ObjectOpenHashMap<SortedArraySet<Ticket<?>>> ip_getTickets();
-    
     @Accessor("mainThreadExecutor")
     Executor ip_getMainThreadExecutor();
     

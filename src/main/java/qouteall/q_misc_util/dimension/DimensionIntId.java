@@ -121,7 +121,7 @@ public class DimensionIntId {
         var packet = MiscNetworking.DimIdSyncPacket.createPacket(server);
         
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            player.connection.send(packet);
+            player.connection.send(new net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket(packet));
         }
     }
 }

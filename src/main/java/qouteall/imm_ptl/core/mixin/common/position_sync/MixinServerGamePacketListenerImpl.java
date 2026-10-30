@@ -212,7 +212,7 @@ public abstract class MixinServerGamePacketListenerImpl implements IEServerPlayN
         }
         
         this.awaitingTeleportTime = this.tickCount;
-        this.player.absMoveTo(x, y, z, yaw, pitch);
+        this.player.absSnapTo(x, y, z, yaw, pitch);
         // TODO @Nick1st 21.3
 //        ClientboundPlayerPositionPacket lookPacket = new ClientboundPlayerPositionPacket(
 //            x - xBase, y - yBase, z - zBase,

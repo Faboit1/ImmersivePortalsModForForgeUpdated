@@ -322,7 +322,7 @@ public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
                 if (SectionPos.blockToSectionCoord(bx) != this.chunkPosition.x()
                     || SectionPos.blockToSectionCoord(bz) != this.chunkPosition.z()
                 ) {
-                    this.chunkPosition = new ChunkPos(this.blockPosition);
+                    this.chunkPosition = ChunkPos.containing(this.blockPosition);
                 }
             }
         }

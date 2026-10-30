@@ -4,7 +4,7 @@ import net.minecraftforge.event.server.ServerStartedEvent;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -231,7 +231,7 @@ public class IPModInfoChecking {
             () -> Minecraft.getInstance().level == null,
             MyTaskList.oneShotTask(() -> {
                 if (IPConfig.getConfig().shouldDisplayWarning("many_mods") && FMLEnvironment.production) {
-                    List<ModContainer> topLevelMods = ModList.get().getSortedMods(); // TODO @Nick1st Fix this up
+                    List<? extends ModContainer> topLevelMods = ModList.getMods().stream().map(info -> ModList.getModContainerById(info.getModId()).orElse(null)).filter(java.util.Objects::nonNull).toList();
 //                    FabricLoader.getInstance().getAllMods().stream()
 //                        .filter(modContainer -> modContainer.getContainingMod().isEmpty()).toList();
                     

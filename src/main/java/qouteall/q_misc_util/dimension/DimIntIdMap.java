@@ -117,7 +117,7 @@ public class DimIntIdMap {
         
         intids.keySet().forEach(dim -> {
             if (intids.contains(dim)) {
-                int intid = intids.getInt(dim);
+                int intid = intids.getIntOr(dim, 0);
                 ResourceKey<Level> dimId = Helper.dimIdToKey(dim);
                 toIntegerId.put(dimId, intid);
                 fromIntegerId.put(intid, dimId);

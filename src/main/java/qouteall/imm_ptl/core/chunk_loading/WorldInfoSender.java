@@ -8,7 +8,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.profiling.Profiler;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import org.apache.commons.lang3.Validate;
 import qouteall.imm_ptl.core.McHelper;
@@ -50,17 +49,8 @@ public class WorldInfoSender {
     public static void sendWorldInfo(ServerPlayer player, ServerLevel world) {
         ResourceKey<Level> remoteDimension = world.dimension();
 
-        PacketRedirection.sendRedirectedMessage(
-                player,
-                remoteDimension,
-                new ClientboundSetTimePacket(
-                        world.getGameTime(),
-                        world.getDayTime(),
-                        world.getGameRules().getBoolean(
-                                GameRules.RULE_DAYLIGHT
-                        )
-                )
-        );
+        // In Minecraft 26 the time of day comes from the world clocks, which are global
+        // and synced to every player by vanilla, so only the weather is sent here.
 
         /**{@link net.minecraft.client.network.ClientPlayNetworkHandler#onGameStateChange(GameStateChangeS2CPacket)}*/
 

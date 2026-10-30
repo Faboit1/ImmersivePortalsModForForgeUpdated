@@ -266,7 +266,7 @@ public class ImmPtlChunkTracking {
                                             player.level().getServer(),
                                             record.dimension,
                                             new ClientboundForgetLevelChunkPacket(
-                                                    new ChunkPos(record.chunkPos)
+                                                    ChunkPos.unpack(record.chunkPos)
                                             )
                                     )
                             );
@@ -508,7 +508,7 @@ public class ImmPtlChunkTracking {
                 PlayerWatchRecord rec = records.remove(oldPlayer);
                 if (rec != null) {
                     PacketRedirection.sendRedirectedMessage(
-                            oldPlayer, dim, new ClientboundForgetLevelChunkPacket(new ChunkPos(chunkPos))
+                            oldPlayer, dim, new ClientboundForgetLevelChunkPacket(ChunkPos.unpack(chunkPos))
                     );
                 }
 
@@ -531,7 +531,7 @@ public class ImmPtlChunkTracking {
         map.forEach((chunkPos, records) -> {
             var unloadPacket = PacketRedirection.createRedirectedMessage(
                     server,
-                    dim, new ClientboundForgetLevelChunkPacket(new ChunkPos(chunkPos))
+                    dim, new ClientboundForgetLevelChunkPacket(ChunkPos.unpack(chunkPos))
             );
             for (PlayerWatchRecord record : records.values()) {
                 if (record.isValid && record.isLoadedToPlayer) {
@@ -618,8 +618,8 @@ public class ImmPtlChunkTracking {
     }
 
     public static void syncBlockUpdateToClientImmediately(ServerLevel world, IntBox box) {
-        ChunkPos lowPos = new ChunkPos(box.l);
-        ChunkPos highPos = new ChunkPos(box.h);
+        ChunkPos lowPos = ChunkPos.containing(box.l);
+        ChunkPos highPos = ChunkPos.containing(box.h);
 
         // flush pending-sending chunks
         Set<ServerPlayer> playersViewingRegion = new HashSet<>();

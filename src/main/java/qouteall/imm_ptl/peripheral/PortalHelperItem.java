@@ -25,13 +25,11 @@ public class PortalHelperItem extends BlockItem {
             if (context.getPlayer() != null) {
                 if (!deprecationInformed) {
                     deprecationInformed = true;
-                    context.getPlayer().displayClientMessage(
-                        Component.translatable(
+                    context.getPlayer().sendSystemMessage(Component.translatable(
                             "imm_ptl.portal_helper_deprecated",
                             Component.literal("/portal shape sculpt")
                                 .withStyle(ChatFormatting.GOLD)
-                        ), false
-                    );
+                        ));
                 }
             }
         }
@@ -42,10 +40,11 @@ public class PortalHelperItem extends BlockItem {
     @Override
     public void appendHoverText(
         ItemStack itemStack, Item.TooltipContext tooltipContext,
-        List<Component> list, TooltipFlag tooltipFlag
+        net.minecraft.world.item.component.TooltipDisplay tooltipDisplay,
+        java.util.function.Consumer<Component> list, TooltipFlag tooltipFlag
     ) {
-        super.appendHoverText(itemStack, tooltipContext, list, tooltipFlag);
+        super.appendHoverText(itemStack, tooltipContext, tooltipDisplay, list, tooltipFlag);
         
-        list.add(Component.translatable("imm_ptl.portal_helper_tooltip"));
+        list.accept(Component.translatable("imm_ptl.portal_helper_tooltip"));
     }
 }

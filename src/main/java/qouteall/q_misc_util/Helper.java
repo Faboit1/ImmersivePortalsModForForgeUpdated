@@ -497,7 +497,7 @@ public class Helper {
         Tag term = tag.get(tagName);
         
         if (term instanceof StringTag) {
-            String id = ((StringTag) term).getAsString();
+            String id = ((StringTag) term).value();
             return dimIdToKey(id);
         }
         
@@ -612,8 +612,8 @@ public class Helper {
     public static Vec3 getVec3d(CompoundTag compoundTag, String name) {
         return new Vec3(
             compoundTag.getDoubleOr(name + "X", 0),
-            compoundTag.getDouble(name + "Y"),
-            compoundTag.getDouble(name + "Z")
+            compoundTag.getDoubleOr(name + "Y", 0),
+            compoundTag.getDoubleOr(name + "Z", 0)
         );
     }
     
@@ -636,8 +636,8 @@ public class Helper {
     public static BlockPos getVec3i(CompoundTag compoundTag, String name) {
         return new BlockPos(
             compoundTag.getIntOr(name + "X", 0),
-            compoundTag.getInt(name + "Y"),
-            compoundTag.getInt(name + "Z")
+            compoundTag.getIntOr(name + "Y", 0),
+            compoundTag.getIntOr(name + "Z", 0)
         );
     }
     
@@ -655,9 +655,9 @@ public class Helper {
         if (compoundTag.contains(name + "X")) {
             return new DQuaternion(
                 compoundTag.getDoubleOr(name + "X", 0),
-                compoundTag.getDouble(name + "Y"),
-                compoundTag.getDouble(name + "Z"),
-                compoundTag.getDouble(name + "W")
+                compoundTag.getDoubleOr(name + "Y", 0),
+                compoundTag.getDoubleOr(name + "Z", 0),
+                compoundTag.getDoubleOr(name + "W", 0)
             );
         }
         else {
@@ -907,7 +907,7 @@ public class Helper {
             return null;
         }
         
-        return new UUID(tag.getLongOr(key1, 0), tag.getLong(key + "Least"));
+        return new UUID(tag.getLongOr(key1, 0), tag.getLongOr(key + "Least", 0));
     }
     
     public static Vec3 getFlippedVec(Vec3 vec, Vec3 flippingAxis) {
@@ -1444,11 +1444,11 @@ public class Helper {
     
     public static @Nullable Vec3 vec3FromListTag(Tag tag) {
         if (tag instanceof ListTag listTag) {
-            if (listTag.getElementType() == Tag.TAG_DOUBLE && listTag.size() == 3) {
+            if (listTag.size() == 3 && listTag.stream().allMatch(t -> t.getId() == Tag.TAG_DOUBLE)) {
                 return new Vec3(
                     listTag.getDoubleOr(0, 0),
-                    listTag.getDouble(1),
-                    listTag.getDouble(2)
+                    listTag.getDoubleOr(1, 0),
+                    listTag.getDoubleOr(2, 0)
                 );
             }
         }

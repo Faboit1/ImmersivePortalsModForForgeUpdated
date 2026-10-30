@@ -178,7 +178,9 @@ public abstract class MixinClientPacketListener implements IEClientPlayNetworkHa
             ClientLevel currentWorld = Minecraft.getInstance().level;
             for (ClientLevel clientWorld : ClientWorldLoader.getClientWorlds()) {
                 if (clientWorld != currentWorld) {
-                    clientWorld.setTimeFromServer(packet.gameTime(), packet.dayTime(), packet.tickDayTime());
+                    clientWorld.setTimeFromServer(packet.gameTime());
+                    // the world clocks are shared by the connection
+                    clientWorld.environmentAttributes().invalidateTickCache();
                 }
             }
         }

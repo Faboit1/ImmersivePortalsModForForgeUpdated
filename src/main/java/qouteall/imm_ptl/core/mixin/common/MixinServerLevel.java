@@ -4,7 +4,7 @@ import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.entity.PersistentEntitySectionManager;
-import net.minecraft.world.level.storage.DimensionDataStorage;
+import net.minecraft.world.level.storage.SavedDataStorage;
 import net.minecraft.world.level.storage.ServerLevelData;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,7 +24,7 @@ import java.util.List;
 public abstract class MixinServerLevel implements IEServerWorld {
     
     @Shadow
-    public abstract DimensionDataStorage getDataStorage();
+    public abstract SavedDataStorage getDataStorage();
     
     @Shadow
     public abstract ServerChunkCache getChunkSource();

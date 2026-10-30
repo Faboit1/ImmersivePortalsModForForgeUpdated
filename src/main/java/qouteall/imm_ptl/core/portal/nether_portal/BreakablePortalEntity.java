@@ -1,7 +1,7 @@
 package qouteall.imm_ptl.core.portal.nether_portal;
 
 import com.mojang.logging.LogUtils;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;

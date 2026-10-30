@@ -1,78 +1,301 @@
 package qouteall.imm_ptl.core;
 
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
+import qouteall.q_misc_util.my_util.NbtBridge;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import com.google.gson.JsonElement;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import com.google.gson.JsonObject;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import com.mojang.logging.LogUtils;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import com.mojang.serialization.Codec;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import com.mojang.serialization.DataResult;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import com.mojang.serialization.DynamicOps;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import com.mojang.serialization.JsonOps;
-import net.minecraft.Util;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
+import net.minecraft.util.Util;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.commands.Commands;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.core.SectionPos;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.server.level.ChunkHolder;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.server.level.ChunkMap;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.util.AbortableIterationConsumer;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.level.entity.EntitySectionStorage;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.level.entity.EntityTypeTest;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.level.entity.LevelEntityGetter;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.level.storage.LevelStorageSource;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import org.apache.commons.io.IOUtils;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import org.apache.commons.lang3.Validate;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import org.jetbrains.annotations.NotNull;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import org.jetbrains.annotations.Nullable;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import org.slf4j.Logger;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import qouteall.imm_ptl.core.compat.GravityChangerInterface;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import qouteall.imm_ptl.core.ducks.*;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import qouteall.imm_ptl.core.mc_utils.MyNbtTextFormatter;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import qouteall.imm_ptl.core.mc_utils.ServerTaskList;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import qouteall.imm_ptl.core.mixin.common.mc_util.IELevelEntityGetterAdapter;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import qouteall.imm_ptl.core.platform_specific.O_O;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import qouteall.imm_ptl.core.portal.Portal;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import qouteall.q_misc_util.Helper;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import qouteall.q_misc_util.MiscHelper;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import qouteall.q_misc_util.my_util.DQuaternion;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import qouteall.q_misc_util.my_util.IntBox;
 
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.io.IOException;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.io.InputStream;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.nio.charset.Charset;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.nio.file.Path;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.util.ArrayList;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.util.Collections;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.util.List;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.util.UUID;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.util.concurrent.CompletableFuture;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.util.function.Consumer;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.util.function.Function;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.util.function.IntPredicate;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.util.function.Predicate;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 import java.util.stream.Stream;
 
 // mc related helper methods
@@ -116,7 +339,7 @@ public class McHelper {
         String text
     ) {
         Helper.log(text);
-        player.displayClientMessage(Component.literal(text), false);
+        player.sendSystemMessage(Component.literal(text));
     }
     
     public static long getServerGameTime() {
@@ -314,10 +537,11 @@ public class McHelper {
         // minecarts, boats and LivingEntity use position interpolation
         // don't make interpolate, or it may interpolate into unloaded chunks
         vehicle.setPos(newVehiclePos.x(), newVehiclePos.y(), newVehiclePos.z());
-        vehicle.lerpTo(
-            newVehiclePos.x(), newVehiclePos.y(), newVehiclePos.z(),
-            vehicle.getYRot(), vehicle.getXRot(), 0
-        );
+        // stop the vehicle's position interpolation
+        InterpolationHandler vehicleInterpolation = vehicle.getInterpolation();
+        if (vehicleInterpolation != null) {
+            vehicleInterpolation.cancel();
+        }
         
         McHelper.setPosAndLastTickPos(
             vehicle, newVehiclePos, newVehicleLastTickPos
@@ -394,7 +618,7 @@ public class McHelper {
         
         Validate.notNull(newPortal);
         
-        newPortal.load(portal.saveWithoutId(new CompoundTag()));
+        NbtBridge.loadEntity(newPortal, NbtBridge.saveEntityWithoutId(portal));
         return newPortal;
     }
     
@@ -404,7 +628,7 @@ public class McHelper {
      * Only check whether the region file exists now.
      */
     public static boolean getDoesRegionFileExist(ResourceKey<Level> toDimension, BlockPos toPos) {
-        ChunkPos chunkPos = new ChunkPos(toPos);
+        ChunkPos chunkPos = ChunkPos.containing(toPos);
         
         LevelStorageSource.LevelStorageAccess storageSource = MiscHelper.getServer().storageSource;
         
@@ -416,9 +640,7 @@ public class McHelper {
     
     public static MutableComponent getLinkText(String link) {
         return Component.literal(link).withStyle(
-            style -> style.withClickEvent(new ClickEvent(
-                ClickEvent.Action.OPEN_URL, link
-            )).withUnderlined(true)
+            style -> style.withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(link))).withUnderlined(true)
         );
     }
     
@@ -428,7 +650,7 @@ public class McHelper {
     
     public static void invokeCommandAs(Entity commandSender, List<String> commandList) {
         if (commandSender.level() instanceof ServerLevel) {
-            CommandSourceStack commandSource = commandSender.createCommandSourceStackForNameResolution((ServerLevel) commandSender.level()).withPermission(2).withSuppressedOutput();
+            CommandSourceStack commandSource = commandSender.createCommandSourceStackForNameResolution((ServerLevel) commandSender.level()).withPermission(LevelBasedPermissionSet.GAMEMASTER).withSuppressedOutput();
             MinecraftServer server = commandSender.level().getServer();
             assert server != null;
             Commands commandManager = server.getCommands();
@@ -451,7 +673,7 @@ public class McHelper {
             return;
         }
         
-        entityTracker.broadcastAndSend(packet);
+        entityTracker.sendToTrackingPlayersAndSelf((Packet) packet);
     }
 
     public static void sendToTrackers(Entity entity, CustomPacketPayload packet) {
@@ -462,7 +684,7 @@ public class McHelper {
             return;
         }
 
-        entityTracker.broadcastAndSend(new ClientboundCustomPayloadPacket(packet));
+        entityTracker.sendToTrackingPlayersAndSelf(IPPayloadRegistry.createS2CPacket(packet));
     }
     
     //it's a little bit incorrect with corner glass pane
@@ -495,7 +717,7 @@ public class McHelper {
             return false;
         }
         
-        boolean entitiesLoaded = world.areEntitiesLoaded(chunkPos.toLong());
+        boolean entitiesLoaded = world.areEntitiesLoaded(chunkPos.pack());
         
         return entitiesLoaded;
     }
@@ -815,7 +1037,7 @@ public class McHelper {
             }
             
             for (ServerPlayer player : playerList) {
-                player.displayClientMessage(text, false);
+                player.sendSystemMessage(text);
             }
             
             return true;

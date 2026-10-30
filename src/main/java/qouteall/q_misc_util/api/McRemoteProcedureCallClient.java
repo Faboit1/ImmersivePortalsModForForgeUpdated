@@ -9,6 +9,6 @@ public class McRemoteProcedureCallClient {
             String methodPath, Object... arguments
     ) {
         var packet = createPacketToSendToServer(methodPath, arguments);
-        Minecraft.getInstance().getConnection().send(packet);
+        Minecraft.getInstance().getConnection().send(new net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket(packet));
     }
 }

@@ -110,20 +110,20 @@ public class PortalExtension {
             bindCluster = true;
         }
         
-        if (compoundTag.hasUUID("reversePortalId")) {
-            reversePortalId = compoundTag.getUUID("reversePortalId");
+        if (compoundTag.read("reversePortalId", net.minecraft.core.UUIDUtil.CODEC).isPresent()) {
+            reversePortalId = compoundTag.read("reversePortalId", net.minecraft.core.UUIDUtil.CODEC).orElseThrow();
         }
         else {
             reversePortalId = null;
         }
-        if (compoundTag.hasUUID("flippedPortalId")) {
-            flippedPortalId = compoundTag.getUUID("flippedPortalId");
+        if (compoundTag.read("flippedPortalId", net.minecraft.core.UUIDUtil.CODEC).isPresent()) {
+            flippedPortalId = compoundTag.read("flippedPortalId", net.minecraft.core.UUIDUtil.CODEC).orElseThrow();
         }
         else {
             flippedPortalId = null;
         }
-        if (compoundTag.hasUUID("parallelPortalId")) {
-            parallelPortalId = compoundTag.getUUID("parallelPortalId");
+        if (compoundTag.read("parallelPortalId", net.minecraft.core.UUIDUtil.CODEC).isPresent()) {
+            parallelPortalId = compoundTag.read("parallelPortalId", net.minecraft.core.UUIDUtil.CODEC).orElseThrow();
         }
         else {
             parallelPortalId = null;
@@ -137,13 +137,13 @@ public class PortalExtension {
         compoundTag.putBoolean("adjustPositionAfterTeleport", adjustPositionAfterTeleport);
         compoundTag.putBoolean("bindCluster", bindCluster);
         if (reversePortalId != null) {
-            compoundTag.putUUID("reversePortalId", reversePortalId);
+            compoundTag.store("reversePortalId", net.minecraft.core.UUIDUtil.CODEC, reversePortalId);
         }
         if (flippedPortalId != null) {
-            compoundTag.putUUID("flippedPortalId", flippedPortalId);
+            compoundTag.store("flippedPortalId", net.minecraft.core.UUIDUtil.CODEC, flippedPortalId);
         }
         if (parallelPortalId != null) {
-            compoundTag.putUUID("parallelPortalId", parallelPortalId);
+            compoundTag.store("parallelPortalId", net.minecraft.core.UUIDUtil.CODEC, parallelPortalId);
         }
     }
     

@@ -53,7 +53,7 @@ public abstract class ImmPtlNetworkingClient {
             entity.setId(syncPacket.id());
             entity.setUUID(syncPacket.uuid());
             entity.syncPacketPositionCodec(syncPacket.x(), syncPacket.y(), syncPacket.z());
-            entity.moveTo(syncPacket.x(), syncPacket.y(), syncPacket.z());
+            entity.snapTo(syncPacket.x(), syncPacket.y(), syncPacket.z());
 
             portal.readPortalDataFromNbt(syncPacket.extraData());
 

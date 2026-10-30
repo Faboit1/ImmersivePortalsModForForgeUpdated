@@ -1,39 +1,21 @@
 package qouteall.imm_ptl.core.render;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import org.jetbrains.annotations.NotNull;
 import qouteall.imm_ptl.core.portal.LoadingIndicatorEntity;
 
+/**
+ * The loading indicator shows its text as an overlay message, so it renders nothing in the world.
+ */
 public class LoadingIndicatorRenderer extends EntityRenderer<LoadingIndicatorEntity, EntityRenderState> {
     public LoadingIndicatorRenderer(EntityRendererProvider.Context context) {
         super(context);
     }
-
+    
     @Override
     public @NotNull EntityRenderState createRenderState() {
         return new EntityRenderState();
-    }
-    
-    @Override
-    public void render(
-            @NotNull EntityRenderState renderState, @NotNull PoseStack poseStack, @NotNull MultiBufferSource bufferSource, int packedLight
-    ) {
-//        String[] splited = entity_1.getText().getString().split("\n");
-//        for (int i = 0; i < splited.length; i++) {
-//            matrixStack_1.push();
-//            matrixStack_1.translate(0, -i * 0.25 - 0.5, 0);
-//            this.renderLabelIfPresent(
-//                entity_1,
-//                new LiteralText(splited[i]),
-//                matrixStack_1,
-//                vertexConsumerProvider_1,
-//                int_1
-//            );
-//            matrixStack_1.pop();
-//        }
     }
 }

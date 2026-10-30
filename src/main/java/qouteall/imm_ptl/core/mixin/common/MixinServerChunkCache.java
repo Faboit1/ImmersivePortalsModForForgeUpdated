@@ -17,4 +17,13 @@ public abstract class MixinServerChunkCache implements IEServerChunkCache {
     public DistanceManager ip_getDistanceManager() {
         return distanceManager;
     }
+    
+    @Shadow
+    @Final
+    private net.minecraft.world.level.TicketStorage ticketStorage;
+    
+    @Override
+    public net.minecraft.world.level.TicketStorage ip_getTicketStorage() {
+        return ticketStorage;
+    }
 }

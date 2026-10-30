@@ -1,6 +1,6 @@
 package qouteall.imm_ptl.core;
 
-import com.mojang.blaze3d.platform.GlUtil;
+import com.mojang.blaze3d.systems.RenderSystem;
 import io.netty.buffer.Unpooled;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -19,7 +19,6 @@ import net.minecraft.world.phys.Vec3;
 import qouteall.imm_ptl.core.ducks.IERayTraceContext;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.global_portals.GlobalPortalStorage;
-import qouteall.imm_ptl.core.render.CrossPortalEntityRenderer;
 import qouteall.q_misc_util.my_util.LimitedLogger;
 
 import java.util.ArrayList;
@@ -102,7 +101,7 @@ public class IPMcHelper {
     
     //avoid dedicated server crash
     public static void onClientEntityTick(Entity entity) {
-        CrossPortalEntityRenderer.onEntityTickClient(entity);
+        // the cross-portal entity rendering is not ported to the Minecraft 26 renderer yet
     }
     
     /**
@@ -291,10 +290,7 @@ public class IPMcHelper {
         String command
     ) {
         return component.withStyle(
-            style -> style.withClickEvent(new ClickEvent(
-                ClickEvent.Action.RUN_COMMAND,
-                command
-            )).withUnderlined(true)
+            style -> style.withClickEvent(new ClickEvent.RunCommand(command)).withUnderlined(true)
         );
     }
     
@@ -314,7 +310,7 @@ public class IPMcHelper {
     
     //@OnlyIn(Dist.CLIENT)
     public static boolean isNvidiaVideocard() {
-        return GlUtil.getVendor().toLowerCase().contains("nvidia");
+        return RenderSystem.getDevice().getDeviceInfo().vendorName().toLowerCase().contains("nvidia");
     }
     
     public static FriendlyByteBuf bytesToBuf(byte[] packetBytes) {

@@ -10,6 +10,8 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.registries.RegisterEvent;
 import qouteall.imm_ptl.core.IPModMain;
+import qouteall.imm_ptl.core.McHelper;
+import qouteall.imm_ptl.core.chunk_loading.ImmPtlChunkTickets;
 import qouteall.imm_ptl.core.commands.AxisArgumentType;
 import qouteall.imm_ptl.core.commands.SubCommandArgumentType;
 import qouteall.imm_ptl.core.commands.TimingFunctionArgumentType;
@@ -35,6 +37,10 @@ public class IPModEntry {
         
         RegisterEvent.getBus(modBus).addListener(registerEvent -> {
             registerEvent.register(Registries.ENTITY_TYPE, IPModMain::registerEntityTypes);
+            registerEvent.register(Registries.TICKET_TYPE, helper -> helper.register(
+                McHelper.newIdentifier("immersive_portals", "portal_loading"),
+                ImmPtlChunkTickets.TICKET_TYPE
+            ));
         });
         
         IPModMain.init(modBus);
@@ -54,12 +60,12 @@ public class IPModEntry {
         
         PeripheralModEntry.init(modBus, isClient);
         
-        if (ModList.get().isLoaded("dimthread")) {
+        if (ModList.isLoaded("dimthread")) {
             O_O.isDimensionalThreadingPresent = true;
             Helper.log("Dimensional Threading is present");
         }
         
-        if (ModList.get().isLoaded("gravity_changer_q")) {
+        if (ModList.isLoaded("gravity_changer_q")) {
             GravityChangerInterface.invoker = new GravityChangerInterface.OnGravityChangerPresent();
             Helper.log("Gravity API is present");
         }

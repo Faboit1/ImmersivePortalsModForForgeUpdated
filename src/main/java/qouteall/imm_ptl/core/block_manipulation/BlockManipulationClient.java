@@ -67,7 +67,7 @@ public class BlockManipulationClient {
             return;
         }
         
-        Vec3 cameraPos = client.gameRenderer.getMainCamera().getPosition();
+        Vec3 cameraPos = client.gameRenderer.mainCamera().position();
         
         double reachDistance = client.player.blockInteractionRange();
 
@@ -91,7 +91,7 @@ public class BlockManipulationClient {
     }
     
     private static double getCurrentTargetDistance() {
-        Vec3 cameraPos = client.gameRenderer.getMainCamera().getPosition();
+        Vec3 cameraPos = client.gameRenderer.mainCamera().position();
         
         if (hitResultIsMissedOrNull(client.hitResult)) {
             return 23333;

@@ -103,7 +103,7 @@ public class McRemoteProcedureCall {
             ServerPlayer player, String methodPath, Object... arguments
     ) {
         var packet = createPacketToSendToClient(methodPath, arguments);
-        player.connection.send(packet);
+        player.connection.send(new net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket(packet));
     }
 
     /**

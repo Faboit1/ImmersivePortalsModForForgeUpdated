@@ -26,7 +26,7 @@ public class MixinPlayerList_Misc {
         CallbackInfo ci
     ) {
         player.connection.send(
-            MiscNetworking.DimIdSyncPacket.createPacket(player.level().getServer())
+            new net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket(MiscNetworking.DimIdSyncPacket.createPacket(player.level().getServer()))
         );
     }
 }

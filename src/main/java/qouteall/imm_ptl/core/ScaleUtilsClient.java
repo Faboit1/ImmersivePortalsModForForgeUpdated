@@ -20,7 +20,7 @@ public class ScaleUtilsClient {
 
             doScalingForEntity(player, portal);
 
-            IECamera camera = (IECamera) client.gameRenderer.getMainCamera();
+            IECamera camera = (IECamera) client.gameRenderer.mainCamera();
             camera.ip_setCameraY(
                     ((float) (camera.ip_getCameraY() * portal.getScaling())),
                     ((float) (camera.ip_getLastCameraY() * portal.getScaling()))

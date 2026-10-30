@@ -1,5 +1,7 @@
 package qouteall.imm_ptl.core.portal;
 
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.player.LocalPlayer;
@@ -125,12 +127,12 @@ public class LoadingIndicatorEntity extends Entity {
     }
     
     @Override
-    protected void readAdditionalSaveData(CompoundTag tag) {
+    protected void readAdditionalSaveData(ValueInput input) {
     
     }
     
     @Override
-    protected void addAdditionalSaveData(CompoundTag tag) {
+    protected void addAdditionalSaveData(ValueOutput output) {
     
     }
     
@@ -160,8 +162,7 @@ public class LoadingIndicatorEntity extends Entity {
     
     //@OnlyIn(Dist.CLIENT)
     private void showMessageClient() {
-        Gui inGameHud = Minecraft.getInstance().gui;
-        inGameHud.setOverlayMessage(
+        Minecraft.getInstance().gui.hud.setOverlayMessage(
             getText(), false
         );
     }

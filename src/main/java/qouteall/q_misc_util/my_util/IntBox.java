@@ -504,13 +504,13 @@ public class IntBox {
         return new IntBox(
             new BlockPos(
                 tag.getIntOr("lX", 0),
-                tag.getInt("lY"),
-                tag.getInt("lZ")
+                tag.getIntOr("lY", 0),
+                tag.getIntOr("lZ", 0)
             ),
             new BlockPos(
                 tag.getIntOr("hX", 0),
-                tag.getInt("hY"),
-                tag.getInt("hZ")
+                tag.getIntOr("hY", 0),
+                tag.getIntOr("hZ", 0)
             )
         );
     }
