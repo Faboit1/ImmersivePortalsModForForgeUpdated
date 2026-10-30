@@ -5,6 +5,7 @@ import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.prediction.BlockStatePredictionHandler;
+import net.minecraft.client.renderer.extract.LevelExtractor;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceKey;
@@ -62,7 +63,7 @@ public abstract class MixinClientLevel implements IEClientWorld {
     @Mutable
     @Shadow
     @Final
-    private LevelRenderer levelRenderer;
+    private LevelExtractor levelExtractor;
     
     @Shadow
     @Final
@@ -99,7 +100,7 @@ public abstract class MixinClientLevel implements IEClientWorld {
         at = @At("RETURN")
     )
     void onConstructed(
-            ClientPacketListener connection, ClientLevel.ClientLevelData levelData, ResourceKey dimension, Holder dimensionTypeRegistration, int viewDistance, int serverSimulationDistance, LevelRenderer levelRenderer, boolean isDebug, long biomeZoomSeed, int seaLevel, CallbackInfo ci
+            ClientPacketListener connection, ClientLevel.ClientLevelData levelData, ResourceKey dimension, Holder dimensionTypeRegistration, int viewDistance, int serverSimulationDistance, LevelExtractor levelExtractor, boolean isDebug, long biomeZoomSeed, int seaLevel, CallbackInfo ci
     ) {
         ClientLevel clientWorld = (ClientLevel) (Object) this;
         ClientChunkCache myClientChunkManager =
@@ -159,7 +160,7 @@ public abstract class MixinClientLevel implements IEClientWorld {
     
     @Override
     public void ip_resetWorldRendererRef() {
-        levelRenderer = null;
+        levelExtractor = null;
     }
     
     @Override

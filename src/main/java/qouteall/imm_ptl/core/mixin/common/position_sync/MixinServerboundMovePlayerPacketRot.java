@@ -17,6 +17,10 @@ public class MixinServerboundMovePlayerPacketRot {
     private static void onRead(
         FriendlyByteBuf buf, CallbackInfoReturnable<ServerboundMovePlayerPacket.Rot> cir
     ) {
+        // a client without ImmPtl does not send the dimension
+        if (!buf.isReadable()) {
+            return;
+        }
         ResourceKey<Level> playerDim = buf.readResourceKey(Registries.DIMENSION);
         ((IEPlayerMoveC2SPacket) cir.getReturnValue()).ip_setPlayerDimension(playerDim);
     }

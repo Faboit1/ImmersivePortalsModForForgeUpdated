@@ -80,10 +80,10 @@ public class MixinServerPlayerGameMode {
         },
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/server/level/ServerPlayer;level()Lnet/minecraft/world/level/Level;"
+            target = "Lnet/minecraft/server/level/ServerPlayer;level()Lnet/minecraft/server/level/ServerLevel;"
         )
     )
-    private Level redirectGetLevel(ServerPlayer instance) {
+    private ServerLevel redirectGetLevel(ServerPlayer instance) {
         return ip_getActualWorld();
     }
     
@@ -109,7 +109,7 @@ public class MixinServerPlayerGameMode {
         method = "handleBlockBreakAction",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/server/level/ServerPlayer;canInteractWithBlock(Lnet/minecraft/core/BlockPos;D)Z"
+            target = "Lnet/minecraft/server/level/ServerPlayer;isWithinBlockInteractionRange(Lnet/minecraft/core/BlockPos;D)Z"
         )
     )
     private boolean wrapDistanceInHandleBlockBreakAction(

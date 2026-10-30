@@ -20,7 +20,7 @@ public abstract class MixinItemEntity_P {
     public abstract ItemStack getItem();
     
     @Shadow
-    private @Nullable UUID thrower;
+    private @Nullable net.minecraft.world.entity.EntityReference<net.minecraft.world.entity.Entity> thrower;
     
     @Inject(
         method = "Lnet/minecraft/world/entity/item/ItemEntity;tick()V",

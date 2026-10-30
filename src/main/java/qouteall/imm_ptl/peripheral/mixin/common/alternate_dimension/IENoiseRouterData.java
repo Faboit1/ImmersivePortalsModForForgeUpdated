@@ -17,8 +17,8 @@ public interface IENoiseRouterData {
         throw new RuntimeException();
     }
     
-    @Invoker("noNewCaves")
-    static NoiseRouter ip_noNewCaves(HolderGetter<DensityFunction> holderGetter, HolderGetter<NormalNoise.NoiseParameters> holderGetter2, DensityFunction densityFunction){
+    @Invoker("postProcess")
+    static DensityFunction ip_postProcess(DensityFunction densityFunction) {
         throw new RuntimeException();
     }
     

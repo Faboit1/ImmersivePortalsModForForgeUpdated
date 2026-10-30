@@ -1,5 +1,9 @@
 package qouteall.imm_ptl.core.mixin.common.collision;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import net.minecraft.world.entity.InsideBlockEffectApplier;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -155,16 +159,38 @@ public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
         }
     }
     
-    @Redirect(
-        method = "checkInsideBlocks",
+    @Shadow
+    protected abstract AABB makeBoundingBox(Vec3 position);
+    
+    // the part of the entity that is behind the portal should not touch blocks
+    @Inject(
+        method = "checkInsideBlocks(Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/entity/InsideBlockEffectApplier$StepBasedCollector;Lit/unimi/dsi/fastutil/longs/LongSet;I)I",
+        at = @At("HEAD"), cancellable = true
+    )
+    private void onCheckInsideBlocks(
+        Vec3 from, Vec3 to, InsideBlockEffectApplier.StepBasedCollector effectCollector,
+        LongSet visitedBlocks, int maxMovementIterations, CallbackInfoReturnable<Integer> cir
+    ) {
+        if (ip_portalCollisionHandler != null &&
+            ip_getActiveCollisionBox(makeBoundingBox(to)) == null
+        ) {
+            cir.setReturnValue(0);
+        }
+    }
+    
+    @WrapOperation(
+        method = "checkInsideBlocks(Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/entity/InsideBlockEffectApplier$StepBasedCollector;Lit/unimi/dsi/fastutil/longs/LongSet;I)I",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/world/entity/Entity;getBoundingBox()Lnet/minecraft/world/phys/AABB;"
+            target = "Lnet/minecraft/world/entity/Entity;makeBoundingBox(Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/AABB;"
         )
     )
-    private AABB redirectBoundingBoxInCheckingBlockCollision(Entity entity) {
-        var result = ip_getActiveCollisionBox(entity.getBoundingBox());
-        return result;
+    private AABB wrapBoundingBoxInCheckingBlockCollision(
+        Entity entity, Vec3 position, Operation<AABB> original
+    ) {
+        AABB box = original.call(entity, position);
+        AABB activeBox = ip_getActiveCollisionBox(box);
+        return activeBox != null ? activeBox : box;
     }
     
     // avoid suffocation when colliding with a portal on wall

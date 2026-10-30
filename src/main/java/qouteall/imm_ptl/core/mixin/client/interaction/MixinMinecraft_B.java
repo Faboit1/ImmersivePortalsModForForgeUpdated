@@ -14,9 +14,6 @@ import qouteall.imm_ptl.core.block_manipulation.BlockManipulationClient;
 @Mixin(Minecraft.class)
 public abstract class MixinMinecraft_B {
     @Shadow
-    protected abstract void pickBlock();
-    
-    @Shadow
     public ClientLevel level;
     
     @Shadow
@@ -100,32 +97,19 @@ public abstract class MixinMinecraft_B {
         }
     }
     
+    // in 26.x the picked block is resolved on the server, in the player's own dimension,
+    // so picking a block through a portal would pick the wrong block. Skip it.
     @WrapOperation(
         method = "handleKeybinds",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/Minecraft;pickBlock()V"
+            target = "Lnet/minecraft/client/Minecraft;pickBlockOrEntity()V"
         )
     )
     private void wrapPickBlock(Minecraft instance, Operation<Void> original) {
         if (BlockManipulationClient.isPointingToPortal()) {
-            ClientLevel remoteWorld = ClientWorldLoader.getWorld(BlockManipulationClient.remotePointedDim);
-            ClientLevel oldWorld = this.level;
-            HitResult oldTarget = this.hitResult;
-            
-            level = remoteWorld;
-            hitResult = BlockManipulationClient.remoteHitResult;
-            
-            try {
-                original.call(instance);
-            }
-            finally {
-                level = oldWorld;
-                hitResult = oldTarget;
-            }
+            return;
         }
-        else {
-            original.call(instance);
-        }
+        original.call(instance);
     }
 }

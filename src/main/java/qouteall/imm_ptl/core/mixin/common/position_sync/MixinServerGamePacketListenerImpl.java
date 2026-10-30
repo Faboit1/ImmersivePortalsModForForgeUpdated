@@ -1,6 +1,7 @@
 package qouteall.imm_ptl.core.mixin.common.position_sync;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -10,6 +11,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
@@ -27,14 +29,15 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.ducks.IEEntity;
 import qouteall.imm_ptl.core.ducks.IEPlayerMoveC2SPacket;
+import qouteall.imm_ptl.core.ducks.IEPlayerPositionLookS2CPacket;
 import qouteall.imm_ptl.core.ducks.IEServerPlayNetworkHandler;
 import qouteall.imm_ptl.core.mc_utils.ServerTaskList;
-import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
 import qouteall.imm_ptl.core.platform_specific.IPConfig;
 import qouteall.imm_ptl.core.teleportation.ServerTeleportationManager;
 import qouteall.q_misc_util.my_util.CountDownInt;
@@ -173,95 +176,90 @@ public abstract class MixinServerGamePacketListenerImpl implements IEServerPlayN
 
     
     /**
-     * @reason make PlayerPositionLookS2CPacket contain dimension data and do some special handling
-     * @author qouteall
+     * Attach the dimension to the position packet and remember which dimension
+     * the awaiting position belongs to.
      */
-    // @Overwrite // TODO @Nick1st 21.3
-    @IPVanillaCopy
-    public void teleport(
-            double x, double y, double z, float yaw, float pitch,
-            Set<Relative> relativeAttrs
+    @Inject(
+        method = "teleport(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V",
+        at = @At("HEAD"), cancellable = true
+    )
+    private void onTeleport(
+        PositionMoveRotation destination, Set<Relative> relatives, CallbackInfo ci
     ) {
         // it may request teleport while this.player is marked removed during respawn
-        
         if (player.getRemovalReason() != null) {
             LOGGER.error(
                 "[ImmPtl] Tries to send player pos packet to a removed player {}",
                 player, new Throwable()
             );
+            ci.cancel();
             return;
         }
         
         if (IPConfig.getConfig().serverTeleportLogging) {
             LOGGER.info(
-                "Teleporting player {} to {} {} {} {}",
-                player, player.level().dimension().identifier(), x, y, z
+                "Teleporting player {} to {} {}",
+                player, player.level().dimension().identifier(), destination.position()
             );
         }
         
-        double xBase = relativeAttrs.contains(Relative.X) ? this.player.getX() : 0.0;
-        double yBase = relativeAttrs.contains(Relative.Y) ? this.player.getY() : 0.0;
-        double zBase = relativeAttrs.contains(Relative.Z) ? this.player.getZ() : 0.0;
-        float yRotBase = relativeAttrs.contains(Relative.Y_ROT) ? this.player.getYRot() : 0.0f;
-        float xRotBase = relativeAttrs.contains(Relative.X_ROT) ? this.player.getXRot() : 0.0f;
-        
-        this.awaitingPositionFromClient = new Vec3(x, y, z);
         this.ip_dimOfAwaitingPosition = player.level().dimension();
-        if (++this.awaitingTeleport == Integer.MAX_VALUE) {
-            this.awaitingTeleport = 0;
+    }
+    
+    @ModifyArg(
+        method = "teleport(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;send(Lnet/minecraft/network/protocol/Packet;)V"
+        )
+    )
+    private Packet<?> modifyTeleportPacket(Packet<?> packet) {
+        if (packet instanceof ClientboundPlayerPositionPacket positionPacket) {
+            ((IEPlayerPositionLookS2CPacket) (Object) positionPacket)
+                .ip_setPlayerDimension(player.level().dimension());
         }
-        
-        this.awaitingTeleportTime = this.tickCount;
-        this.player.absSnapTo(x, y, z, yaw, pitch);
-        // TODO @Nick1st 21.3
-//        ClientboundPlayerPositionPacket lookPacket = new ClientboundPlayerPositionPacket(
-//            x - xBase, y - yBase, z - zBase,
-//            yaw - yRotBase, pitch - xRotBase,
-//            relativeAttrs, this.awaitingTeleport
-//        );
-//
-//        ((IEPlayerPositionLookS2CPacket) lookPacket).ip_setPlayerDimension(player.level().dimension());
-//
-//        this.player.connection.send(lookPacket);
+        return packet;
     }
     
     @Inject(
-        method = "isPlayerCollidingWithAnythingNew", at = @At("HEAD"), cancellable = true
+        method = "isEntityCollidingWithAnythingNew", at = @At("HEAD"), cancellable = true
     )
-    private void onIsPlayerCollidingWithAnythingNew(
-        LevelReader level, AABB playerBB, double newX, double newY, double newZ, CallbackInfoReturnable<Boolean> cir
+    private void onIsEntityCollidingWithAnythingNew(
+        LevelReader level, Entity entity, AABB oldAABB,
+        double newX, double newY, double newZ, CallbackInfoReturnable<Boolean> cir
     ) {
         if (!IPGlobal.crossPortalCollision) {
             return;
         }
         
-        // for this to work, the player's portal collision status must be updated after teleporting
+        // for this to work, the entity's portal collision status must be updated after teleporting
         
-        AABB activePlayerBB = ((IEEntity) player).ip_getActiveCollisionBox(playerBB);
+        AABB activeOldBB = ((IEEntity) entity).ip_getActiveCollisionBox(oldAABB);
         
-        if (activePlayerBB == null) {
+        if (activeOldBB == null) {
             cir.setReturnValue(false);
             return;
         }
         
-        AABB newBB = this.player.getBoundingBox().move(
-            newX - this.player.getX(), newY - this.player.getY(), newZ - this.player.getZ()
+        AABB newBB = entity.getBoundingBox().move(
+            newX - entity.getX(), newY - entity.getY(), newZ - entity.getZ()
         );
         
-        AABB activeNewBB = ((IEEntity) player).ip_getActiveCollisionBox(newBB);
+        AABB activeNewBB = ((IEEntity) entity).ip_getActiveCollisionBox(newBB);
         
         if (activeNewBB == null) {
             cir.setReturnValue(false);
             return;
         }
         
-        Iterable<VoxelShape> newBBCollisions =
-            level.getCollisions(this.player, activeNewBB.deflate(1.0E-5F));
+        Iterable<VoxelShape> newBBCollisions = level.getPreMoveCollisions(
+            entity, activeNewBB.deflate(1.0E-5F), oldAABB.getBottomCenter()
+        );
         
-        VoxelShape activePlayerBBShape = Shapes.create(activePlayerBB.deflate(1.0E-5F));
+        VoxelShape activeOldBBShape = Shapes.create(activeOldBB.deflate(1.0E-5F));
         
         for (VoxelShape shape : newBBCollisions) {
-            if (!Shapes.joinIsNotEmpty(shape, activePlayerBBShape, BooleanOp.AND)) {
+            if (!Shapes.joinIsNotEmpty(shape, activeOldBBShape, BooleanOp.AND)) {
                 // when a new collision box does not intersect with old bounding box
                 // it's considered as colliding with something new
                 cir.setReturnValue(true);
@@ -286,7 +284,7 @@ public abstract class MixinServerGamePacketListenerImpl implements IEServerPlayN
         method = "handleAcceptTeleportPacket",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/server/level/ServerPlayer;absMoveTo(DDDFF)V"
+            target = "Lnet/minecraft/server/level/ServerPlayer;absSnapTo(DDDFF)V"
         )
     )
     private void onHandleAcceptTeleportPacket(

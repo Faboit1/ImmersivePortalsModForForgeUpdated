@@ -1,5 +1,7 @@
 package qouteall.imm_ptl.peripheral.alternate_dimension;
 
+import net.minecraft.world.level.levelgen.DensityFunctions;
+import net.minecraft.world.level.levelgen.NoiseRouter;
 import com.google.common.base.Suppliers;
 import com.mojang.datafixers.DataFixer;
 import com.mojang.serialization.Codec;
@@ -36,7 +38,6 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import org.jetbrains.annotations.NotNull;
 import qouteall.imm_ptl.peripheral.mixin.common.alternate_dimension.IEChunkAccess_AlternateDim;
-import qouteall.imm_ptl.peripheral.mixin.common.alternate_dimension.IEChunkGenerator_AlternateDim;
 import qouteall.imm_ptl.peripheral.mixin.common.alternate_dimension.IENoiseRouterData;
 
 import java.util.List;
@@ -124,10 +125,9 @@ public class NormalSkylandGenerator extends NoiseBasedChunkGenerator {
             intrinsicSkylandNGS.noiseSettings(),
             intrinsicSkylandNGS.defaultBlock(),
             intrinsicSkylandNGS.defaultFluid(),
-            IENoiseRouterData.ip_noNewCaves(
-                densityFunctionHolderGetter,
-                noiseParametersHolderGetter,
-                IENoiseRouterData.ip_slideEndLike(IENoiseRouterData.ip_getFunction( //TODO @Nick1st This is a change to Final density (starting after Squeeze -> Mul -> Interpolated -> Blend density -> Add -> Mul
+            skylandNoiseRouter(
+                overworldNGS.noiseRouter(),
+                IENoiseRouterData.ip_slideEndLike(IENoiseRouterData.ip_getFunction(
                     densityFunctionHolderGetter, IENoiseRouterData.get_BASE_3D_NOISE_END()
                 ), 0, 128)
             ),
@@ -154,21 +154,7 @@ public class NormalSkylandGenerator extends NoiseBasedChunkGenerator {
             seed
         );
         
-        ((IEChunkGenerator_AlternateDim) result).ip_setFeaturesPerStep(
-            Suppliers.memoize(
-                () -> FeatureSorter.buildFeaturesPerStep(
-                    List.copyOf(overworldBiomeSource.possibleBiomes()),
-                    holder -> {
-                        Biome biome = holder.value();
-                        BiomeGenerationSettings bgs = biome.getGenerationSettings();
-                        List<HolderSet<PlacedFeature>> features = bgs.features();
-                        // TODO modify feature
-                        return features;
-                    },
-                    true
-                )
-            )
-        );
+        // the features per step are computed from the overworld biome source by vanilla
         
         return result;
     }
@@ -224,5 +210,30 @@ public class NormalSkylandGenerator extends NoiseBasedChunkGenerator {
         };
         
         return super.createState(structureSetLookupDelegate, randomState, seed);
+    }
+    
+    /**
+     * The floating island terrain with the overworld climate,
+     * so that the overworld biome source produces the overworld biomes.
+     * (Replaces the removed NoiseRouterData.noNewCaves)
+     */
+    private static NoiseRouter skylandNoiseRouter(NoiseRouter overworldRouter, DensityFunction slide) {
+        return new NoiseRouter(
+            DensityFunctions.zero(),
+            DensityFunctions.zero(),
+            DensityFunctions.zero(),
+            DensityFunctions.zero(),
+            overworldRouter.temperature(),
+            overworldRouter.vegetation(),
+            overworldRouter.continents(),
+            overworldRouter.erosion(),
+            overworldRouter.depth(),
+            overworldRouter.ridges(),
+            DensityFunctions.zero(),
+            IENoiseRouterData.ip_postProcess(slide),
+            DensityFunctions.zero(),
+            DensityFunctions.zero(),
+            DensityFunctions.zero()
+        );
     }
 }

@@ -1,5 +1,7 @@
 package qouteall.imm_ptl.core.platform_specific;
 
+import qouteall.imm_ptl.core.render.ImmPtlDebugScreenEntry;
+
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.world.entity.EntityType;
 import net.minecraftforge.eventbus.api.bus.BusGroup;
@@ -54,6 +56,8 @@ public class IPModEntryClient {
 
     public void onInitializeClient(BusGroup modBus) {
         IPModMainClient.init();
+        
+        ImmPtlDebugScreenEntry.init();
         
         IPModInfoChecking.initClient();
     }
