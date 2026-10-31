@@ -60,6 +60,8 @@ public abstract class MixinCamera implements IECamera {
     @Final
     private Quaternionf rotation;
     @Shadow
+    private boolean detached;
+    @Shadow
     private float eyeHeight;
     @Shadow
     private float eyeHeightOld;
@@ -140,7 +142,7 @@ public abstract class MixinCamera implements IECamera {
     
     @Override
     public void ip_setupPortalView(
-        ClientLevel level, Entity entity, Vec3 pos, Quaternionf rotation, Camera mainCamera
+        ClientLevel level, Entity entity, Vec3 pos, Quaternionf rotation, Camera mainCamera, boolean detached
     ) {
         MixinCamera main = (MixinCamera) (Object) mainCamera;
         
@@ -148,6 +150,8 @@ public abstract class MixinCamera implements IECamera {
         ip_isPortalCamera = true;
         this.level = level;
         this.entity = entity;
+        // a detached camera renders its entity, so the player is visible in the portal view (and mirrors)
+        this.detached = detached;
         setPosition(pos);
         
         this.rotation.set(rotation);

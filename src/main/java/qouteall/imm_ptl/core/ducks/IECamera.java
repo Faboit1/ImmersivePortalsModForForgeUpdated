@@ -22,9 +22,10 @@ public interface IECamera {
     /**
      * Sets up this camera as the camera looking through a portal.
      * The projection parameters are copied from the main camera.
+     * @param detached whether the camera entity (the player) is rendered
      */
     void ip_setupPortalView(
-        ClientLevel level, Entity entity, Vec3 pos, Quaternionf rotation, Camera mainCamera
+        ClientLevel level, Entity entity, Vec3 pos, Quaternionf rotation, Camera mainCamera, boolean detached
     );
     
     void ip_tickPortalView();

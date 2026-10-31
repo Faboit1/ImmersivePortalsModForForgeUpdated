@@ -1,21 +1,19 @@
 package qouteall.imm_ptl.core.render;
 
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.common.NeoForge;
-
+import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.logging.LogUtils;
+import de.nick1st.imm_ptl.events.ClientCleanupEvent;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -26,27 +24,27 @@ import net.minecraft.client.renderer.GlobalSettingsUniform;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.Lightmap;
 import net.minecraft.client.renderer.LightmapRenderStateExtractor;
-import qouteall.imm_ptl.core.mixin.client.render.IELightmapRenderStateExtractor;
-import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
-import net.minecraft.client.renderer.state.level.LevelRenderState;
-import net.minecraft.client.renderer.extract.LevelExtractor;
-import qouteall.imm_ptl.core.chunk_loading.ImmPtlClientChunkMap;
-import de.nick1st.imm_ptl.events.ClientCleanupEvent;
-import qouteall.q_misc_util.event.IPEventBus;
-import java.util.WeakHashMap;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.client.renderer.extract.LevelExtractor;
 import net.minecraft.client.renderer.fog.FogRenderer;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.client.renderer.texture.AbstractTexture;
+import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -54,15 +52,18 @@ import org.joml.Vector4f;
 import org.slf4j.Logger;
 import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.IPGlobal;
+import qouteall.imm_ptl.core.chunk_loading.ImmPtlClientChunkMap;
 import qouteall.imm_ptl.core.ducks.IECamera;
 import qouteall.imm_ptl.core.mixin.client.render.IEGameRenderer_PortalView;
-import qouteall.imm_ptl.core.portal.Mirror;
+import qouteall.imm_ptl.core.mixin.client.render.IELightmapRenderStateExtractor;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.global_portals.GlobalPortalStorage;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
+import qouteall.q_misc_util.event.IPEventBus;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -70,36 +71,32 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.WeakHashMap;
 
 /**
  * Renders the views through the portals for the Minecraft 26 renderer.
  * <p>
  * Minecraft 26 renders a frame in two steps: the main thread "extracts" the level into a shared
  * render state, then the level renderer renders that state. Before the main view is extracted,
- * each visible portal's view is extracted and rendered into its own off-screen target, using the
- * destination dimension's level renderer and a camera transformed by the portal.
- * The portal surface is then drawn in the main view by {@link PortalEntityRenderer},
- * sampling that target in screen space.
+ * each visible portal's view is extracted and rendered into its own off-screen target, using a
+ * level renderer of the destination dimension and a camera transformed by the portal.
+ * The portal surface is then drawn by {@link PortalEntityRenderer}, sampling that target in screen space.
  * <p>
- * Limitations of this renderer: one layer of portals (portals seen through portals are not drawn),
- * mirrors are not drawn, and the player is not rendered inside the portal view.
+ * The portals seen through portals are handled the same way: the views form a tree
+ * (built breadth-first from the main camera, up to the max portal layer and the portal render limit),
+ * and the views are rendered deepest-first, so a view is rendered after the views of the portals in it.
+ * <p>
+ * A mirror (or any portal transformation with a reflection) cannot be rendered with a normal camera,
+ * as the reflection turns the faces inside out. Such a view is rendered with the camera
+ * whose horizontal axis is negated, and the image is flipped horizontally when the surface samples it.
  */
 public class PortalViewRendering {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    /**
-     * Some uniform buffers are 3-buffer rings that can be used 3 times per frame
-     * (for example the post effect passes and the clouds), and the main view uses one.
-     */
-    public static final int MAX_VIEWS_PER_FRAME = 2;
-
-    private static final Identifier PIPELINE_ID =
-        Identifier.fromNamespaceAndPath("immersive_portals", "pipeline/portal_view");
     private static final Identifier SHADER_ID =
         Identifier.fromNamespaceAndPath("immersive_portals", "core/portal_view");
 
-    public static final RenderPipeline PORTAL_VIEW_PIPELINE = RenderPipeline.builder(RenderPipelines.GLOBALS_SNIPPET)
-        .withLocation(PIPELINE_ID)
+    private static final RenderPipeline.Snippet PORTAL_VIEW_SNIPPET = RenderPipeline.builder(RenderPipelines.GLOBALS_SNIPPET)
         .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
         .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
         .withVertexShader(SHADER_ID)
@@ -108,18 +105,29 @@ public class PortalViewRendering {
         .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
         .withDepthStencilState(DepthStencilState.DEFAULT)
         .withCull(false)
+        .buildSnippet();
+
+    public static final RenderPipeline PORTAL_VIEW_PIPELINE = RenderPipeline.builder(PORTAL_VIEW_SNIPPET)
+        .withLocation(Identifier.fromNamespaceAndPath("immersive_portals", "pipeline/portal_view"))
+        .build();
+
+    // samples the view image flipped horizontally
+    public static final RenderPipeline PORTAL_VIEW_FLIPPED_PIPELINE = RenderPipeline.builder(PORTAL_VIEW_SNIPPET)
+        .withLocation(Identifier.fromNamespaceAndPath("immersive_portals", "pipeline/portal_view_flipped"))
+        .withShaderDefine("FLIP_X")
         .build();
 
     /**
-     * An off-screen target that holds the view through one portal.
+     * An off-screen target that holds one portal view.
      */
     private static final class ViewSlot {
         final int index;
         final Identifier textureId;
         final ViewTexture texture;
         final RenderType renderType;
+        final RenderType flippedRenderType;
         @Nullable TextureTarget target;
-        // each view has its own lightmap and fog uniform buffers, as they are rings of 3 buffers
+        // each view has its own lightmap and fog uniform buffers
         @Nullable Lightmap lightmap;
         @Nullable FogRenderer fogRenderer;
 
@@ -131,6 +139,12 @@ public class PortalViewRendering {
             this.renderType = RenderType.create(
                 "immersive_portals_portal_view_" + index,
                 RenderSetup.builder(PORTAL_VIEW_PIPELINE)
+                    .withTexture("Sampler0", textureId)
+                    .createRenderSetup()
+            );
+            this.flippedRenderType = RenderType.create(
+                "immersive_portals_portal_view_flipped_" + index,
+                RenderSetup.builder(PORTAL_VIEW_FLIPPED_PIPELINE)
                     .withTexture("Sampler0", textureId)
                     .createRenderSetup()
             );
@@ -172,32 +186,80 @@ public class PortalViewRendering {
         }
     }
 
-    private static final List<ViewSlot> slots = new ArrayList<>();
+    /**
+     * A view in the view tree of the current frame. The root is the main view.
+     */
+    private static final class ViewNode {
+        final @Nullable ViewNode parent;
+        final @Nullable Portal portal;
+        final int depth;
+        final ClientLevel level;
+        final Vec3 cameraPos;
+        // the camera basis transformed by the portals. It's left-handed when flipped.
+        final Vector3f right;
+        final Vector3f up;
+        final Vector3f forward;
+        final boolean flipped;
+        final List<UUID> path;
+        final Camera camera;
+        final Map<Portal, ViewNode> children = new IdentityHashMap<>();
+        @Nullable ViewSlot slot;
+        @Nullable PooledRenderer renderer;
+        // the level renderer also renders another view in this frame (at another place)
+        boolean sharesRenderer;
 
-    // the portals whose views have been rendered in the current frame
-    private static final Map<Portal, ViewSlot> renderedViews = new IdentityHashMap<>();
+        ViewNode(
+            @Nullable ViewNode parent, @Nullable Portal portal, ClientLevel level, Vec3 cameraPos,
+            Vector3f right, Vector3f up, Vector3f forward, List<UUID> path, Camera camera
+        ) {
+            this.parent = parent;
+            this.portal = portal;
+            this.depth = parent == null ? 0 : parent.depth + 1;
+            this.level = level;
+            this.cameraPos = cameraPos;
+            this.right = right;
+            this.up = up;
+            this.forward = forward;
+            this.flipped = right.dot(new Vector3f(forward).cross(up)) < 0;
+            this.path = path;
+            this.camera = camera;
+        }
 
-    // a camera per portal, so that its environment attribute probe (sky color etc.) keeps its state
-    private static final Map<UUID, Camera> portalCameras = new HashMap<>();
-    private static final Map<UUID, Long> portalCameraLastUse = new HashMap<>();
-
-    private static @Nullable ProjectionMatrixBuffer projectionMatrixBuffer;
-    private static @Nullable GlobalSettingsUniform globalSettingsUniform;
+        /**
+         * Whether the view image has to be flipped when its surface is drawn into the parent view.
+         */
+        boolean isFlippedRelativeToParent() {
+            return parent != null && flipped != parent.flipped;
+        }
+    }
 
     /**
-     * The views through the portals that lead to the current dimension cannot use the main level renderer,
-     * because the level renderer keeps state about its camera (the section grid around the camera and
-     * the section occlusion graph), so they use a separate level renderer of the same level.
+     * A level renderer used by the portal views.
+     * A level renderer keeps state about its camera (the section grid around the camera, the section occlusion graph),
+     * and the sections that leave the grid when the camera moves are recompiled. So the views at different places
+     * use different level renderers, and each view uses the level renderer that was used near its camera before.
+     * <p>
+     * The level's own level renderer is used when the player is not in the level.
+     * The others are created on demand, and receive the block updates of the level's level renderer.
      */
-    private static final class MirrorRenderer {
+    private static final class PooledRenderer {
         final ClientLevel level;
         final LevelRenderer renderer;
         final LevelExtractor extractor;
-        long lastUsedFrame;
-        
-        MirrorRenderer(Minecraft client, ClientLevel level) {
+        // whether it was created for the portal views (not the level's own level renderer)
+        final boolean isExtra;
+        @Nullable SectionPos lastCameraSection;
+        long lastUsedFrame = -1;
+
+        PooledRenderer(ClientLevel level, LevelRenderer renderer, LevelExtractor extractor, boolean isExtra) {
             this.level = level;
-            this.renderer = new LevelRenderer(
+            this.renderer = renderer;
+            this.extractor = extractor;
+            this.isExtra = isExtra;
+        }
+
+        static PooledRenderer createExtra(Minecraft client, ClientLevel level) {
+            LevelRenderer renderer = new LevelRenderer(
                 client.getEntityRenderDispatcher(),
                 client.getBlockEntityRenderDispatcher(),
                 client.getModelManager(),
@@ -208,14 +270,18 @@ public class PortalViewRendering {
                 client.getWindow().getWidth(),
                 client.getWindow().getHeight()
             );
-            this.extractor = new LevelExtractor(
+            LevelExtractor extractor = new LevelExtractor(
                 client, client.gameRenderer.gameRenderState().levelRenderState, renderer
             );
             extractor.setLevel(level);
             extractor.onResourceManagerReload(client.getResourceManager());
+            return new PooledRenderer(level, renderer, extractor, true);
         }
-        
+
         void dispose() {
+            if (!isExtra) {
+                return;
+            }
             extractor.setLevel(null);
             renderer.close();
             if (level.getChunkSource() instanceof ImmPtlClientChunkMap chunkMap) {
@@ -223,85 +289,97 @@ public class PortalViewRendering {
             }
         }
     }
-    
-    private static final Map<ClientLevel, MirrorRenderer> mirrorRenderers = new IdentityHashMap<>();
-    // primary level extractor -> the mirror's level extractor
-    private static final Map<LevelExtractor, LevelExtractor> mirrorExtractors = new IdentityHashMap<>();
-    
+
+    // at most this many extra level renderers for one level
+    private static final int MAX_EXTRA_RENDERERS_PER_LEVEL = 4;
+
+    private static final Map<ClientLevel, List<PooledRenderer>> extraRenderers = new IdentityHashMap<>();
+    // the state of the levels' own level renderers when used by the portal views
+    private static final Map<LevelRenderer, PooledRenderer> primaryRenderers = new WeakHashMap<>();
+    // the level's own level extractor -> the extra level extractors of the level
+    private static final Map<LevelExtractor, List<LevelExtractor>> extraExtractors = new IdentityHashMap<>();
+
+    private static final List<ViewSlot> slots = new ArrayList<>();
+
+    // a camera per view path, so that its environment attribute probe (sky color etc.) keeps its state
+    private static final Map<List<UUID>, Camera> viewCameras = new HashMap<>();
+    private static final Map<List<UUID>, Long> viewCameraLastUse = new HashMap<>();
+
+    private static @Nullable ProjectionMatrixBuffer projectionMatrixBuffer;
+    private static @Nullable GlobalSettingsUniform globalSettingsUniform;
+
     private static final Map<LevelRenderer, Long> rendererSizes = new WeakHashMap<>();
-    
+
     private static long frameIndex = 0;
-    private static boolean isRenderingView = false;
+
+    // the view tree of the current frame
+    private static @Nullable ViewNode rootView;
+    // the view whose level is being rendered. it is the root view when rendering the main view
+    private static @Nullable ViewNode renderingView;
+
+    private static boolean isSharingRenderer = false;
 
     public static void init() {
         NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> tick());
         IPEventBus.EVENT_BUS.addListener(ClientCleanupEvent.class, event -> cleanup());
     }
-    
+
     private static void cleanup() {
-        mirrorRenderers.values().forEach(MirrorRenderer::dispose);
-        mirrorRenderers.clear();
-        mirrorExtractors.clear();
-        portalCameras.clear();
-        portalCameraLastUse.clear();
-        renderedViews.clear();
+        extraRenderers.values().forEach(list -> list.forEach(PooledRenderer::dispose));
+        extraRenderers.clear();
+        extraExtractors.clear();
+        primaryRenderers.clear();
+        viewCameras.clear();
+        viewCameraLastUse.clear();
         rendererSizes.clear();
-    }
-    
-    /**
-     * @return the level extractor of the mirror renderer, which must receive the block updates
-     * that the primary level extractor receives
-     */
-    public static @Nullable LevelExtractor getMirrorExtractor(LevelExtractor primary) {
-        return mirrorExtractors.get(primary);
-    }
-    
-    private static MirrorRenderer getMirrorRenderer(Minecraft client, ClientLevel level) {
-        MirrorRenderer mirror = mirrorRenderers.computeIfAbsent(level, k -> {
-            MirrorRenderer newMirror = new MirrorRenderer(client, level);
-            LevelExtractor primary = ClientWorldLoader.getLevelExtractor(level.dimension());
-            if (primary != null) {
-                mirrorExtractors.put(primary, newMirror.extractor);
-            }
-            return newMirror;
-        });
-        mirror.lastUsedFrame = frameIndex;
-        return mirror;
-    }
-    
-    private static void ensureRendererSize(LevelRenderer renderer, int width, int height) {
-        long size = ((long) width << 32) | (height & 0xFFFFFFFFL);
-        Long oldSize = rendererSizes.put(renderer, size);
-        if (oldSize == null || oldSize != size) {
-            renderer.resize(width, height);
-        }
+        rootView = null;
+        renderingView = null;
     }
 
     private static void tick() {
-        portalCameras.values().forEach(camera -> ((IECamera) camera).ip_tickPortalView());
-        
-        // release the mirror renderers that have not been used for a while
-        mirrorRenderers.values().removeIf(mirror -> {
-            if (frameIndex - mirror.lastUsedFrame > 600) {
-                mirrorExtractors.values().remove(mirror.extractor);
-                mirror.dispose();
-                return true;
-            }
-            return false;
-        });
+        viewCameras.values().forEach(camera -> ((IECamera) camera).ip_tickPortalView());
 
-        // forget the cameras of the portals that have not been rendered recently
-        portalCameraLastUse.entrySet().removeIf(e -> {
+        // release the extra level renderers that have not been used for a while
+        for (List<PooledRenderer> list : extraRenderers.values()) {
+            list.removeIf(entry -> {
+                if (frameIndex - entry.lastUsedFrame > 600) {
+                    extraExtractors.values().forEach(extractors -> extractors.remove(entry.extractor));
+                    entry.dispose();
+                    return true;
+                }
+                return false;
+            });
+        }
+        extraRenderers.values().removeIf(List::isEmpty);
+
+        // forget the cameras of the views that have not been rendered recently
+        viewCameraLastUse.entrySet().removeIf(e -> {
             if (frameIndex - e.getValue() > 200) {
-                portalCameras.remove(e.getKey());
+                viewCameras.remove(e.getKey());
                 return true;
             }
             return false;
         });
     }
 
+    /**
+     * @return the extra level extractors of the level, which must receive the block updates
+     * that the level's own level extractor receives
+     */
+    public static List<LevelExtractor> getExtraExtractors(LevelExtractor primary) {
+        return extraExtractors.getOrDefault(primary, List.of());
+    }
+
     public static boolean isRenderingView() {
-        return isRenderingView;
+        return renderingView != null && renderingView != rootView;
+    }
+
+    /**
+     * Whether the level renderer being used renders another view (at another place) in this frame.
+     * See {@link qouteall.imm_ptl.core.mixin.client.render.MixinLevelRenderer_PortalView}
+     */
+    public static boolean isSharingRenderer() {
+        return isSharingRenderer;
     }
 
     /**
@@ -309,10 +387,11 @@ public class PortalViewRendering {
      */
     public static void renderPortalViews(DeltaTracker deltaTracker) {
         frameIndex++;
-        renderedViews.clear();
+        rootView = null;
+        renderingView = null;
 
         Minecraft client = Minecraft.getInstance();
-        if (isRenderingView || client.level == null || client.player == null) {
+        if (client.level == null || client.player == null) {
             return;
         }
         if (IPGlobal.renderMode == IPGlobal.RenderMode.none) {
@@ -324,44 +403,91 @@ public class PortalViewRendering {
             return;
         }
 
-        List<Portal> portals = collectPortalsToRender(client.level, mainCamera);
+        Quaternionf mainRotation = mainCamera.rotation();
+        ViewNode root = new ViewNode(
+            null, null, client.level, mainCamera.position(),
+            mainRotation.transform(new Vector3f(1, 0, 0)),
+            mainRotation.transform(new Vector3f(0, 1, 0)),
+            mainRotation.transform(new Vector3f(0, 0, -1)),
+            List.of(), mainCamera
+        );
 
-        for (int i = 0; i < portals.size(); i++) {
-            Portal portal = portals.get(i);
-            ClientLevel destWorld = ClientWorldLoader.getOptionalWorld(portal.getDestDim());
-            if (destWorld == null) {
-                continue;
-            }
+        List<ViewNode> views = buildViewTree(client, root, mainCamera);
 
-            ViewSlot slot = getSlot(i);
+        // the outer views are larger on screen, they get the level renderers first
+        for (ViewNode view : views) {
+            assignRenderer(client, view);
+        }
+
+        // render the deepest views first, a view samples the views of the portals in it
+        for (int i = views.size() - 1; i >= 0; i--) {
+            ViewNode view = views.get(i);
+            view.slot = getSlot(i);
             try {
-                renderView(client, portal, destWorld, slot, deltaTracker, mainCamera);
-                renderedViews.put(portal, slot);
+                renderView(client, view, deltaTracker, mainCamera);
             }
             catch (Throwable e) {
-                LOGGER.error("[ImmPtl] Failed to render portal view {}", portal, e);
+                LOGGER.error("[ImmPtl] Failed to render portal view {}", view.portal, e);
+                view.slot = null;
             }
         }
 
-        RenderStates.portalsRenderedThisFrame = renderedViews.size();
+        rootView = root;
+        renderingView = root;
+        RenderStates.portalsRenderedThisFrame = views.size();
     }
 
-    private static List<Portal> collectPortalsToRender(ClientLevel level, Camera mainCamera) {
-        Vec3 cameraPos = mainCamera.position();
-        Frustum frustum = mainCamera.getCullFrustum();
-        double maxDistance = Minecraft.getInstance().options.getEffectiveRenderDistance() * 16;
+    /**
+     * @return the views in breadth-first order (a view comes after its parent)
+     */
+    private static List<ViewNode> buildViewTree(Minecraft client, ViewNode root, Camera mainCamera) {
+        int maxDepth = PortalRendering.getMaxPortalLayer();
+        int budget = Math.max(0, IPGlobal.portalRenderLimit);
+
+        List<ViewNode> result = new ArrayList<>();
+        ArrayDeque<ViewNode> queue = new ArrayDeque<>();
+        queue.add(root);
+
+        while (!queue.isEmpty() && result.size() < budget) {
+            ViewNode parent = queue.poll();
+            if (parent.depth >= maxDepth) {
+                continue;
+            }
+
+            for (Portal portal : collectVisiblePortals(client, parent)) {
+                if (result.size() >= budget) {
+                    break;
+                }
+                ClientLevel destWorld = ClientWorldLoader.getOptionalWorld(portal.getDestDim());
+                if (destWorld == null) {
+                    continue;
+                }
+                ViewNode child = createChildView(client, parent, portal, destWorld, mainCamera);
+                parent.children.put(portal, child);
+                result.add(child);
+                queue.add(child);
+            }
+        }
+
+        return result;
+    }
+
+    private static List<Portal> collectVisiblePortals(Minecraft client, ViewNode view) {
+        Vec3 cameraPos = view.cameraPos;
+        Frustum frustum = view.camera.getCullFrustum();
+        double maxDistance = client.options.getEffectiveRenderDistance() * 16;
 
         List<Portal> candidates = new ArrayList<>();
-        for (Entity entity : level.entitiesForRendering()) {
+        for (Entity entity : view.level.entitiesForRendering()) {
             if (entity instanceof Portal portal) {
                 candidates.add(portal);
             }
         }
-        candidates.addAll(GlobalPortalStorage.getGlobalPortals(level));
+        candidates.addAll(GlobalPortalStorage.getGlobalPortals(view.level));
 
         List<Portal> result = new ArrayList<>();
         for (Portal portal : candidates) {
-            if (!portal.isVisible() || portal instanceof Mirror) {
+            if (!portal.isVisible()) {
                 continue;
             }
             if (!portal.isInFrontOfPortal(cameraPos)) {
@@ -373,15 +499,69 @@ public class PortalViewRendering {
             if (!frustum.isVisible(portal.getBoundingBox())) {
                 continue;
             }
+            if (view.portal != null) {
+                // the portal at the destination of the outer portal that faces back
+                if (Portal.isParallelOrientedPortal(portal, view.portal)) {
+                    continue;
+                }
+                // clipped away by the outer portal's clipping plane
+                if (isBehindPlane(portal.getBoundingBox(), view.portal.getDestPos(), view.portal.getContentDirection())) {
+                    continue;
+                }
+            }
             result.add(portal);
         }
 
         result.sort(Comparator.comparingDouble(p -> p.getDistanceToNearestPointInPortal(cameraPos)));
-        int limit = Math.min(MAX_VIEWS_PER_FRAME, IPGlobal.portalRenderLimit);
-        if (result.size() > limit) {
-            return new ArrayList<>(result.subList(0, limit));
-        }
         return result;
+    }
+
+    private static boolean isBehindPlane(AABB box, Vec3 planePoint, Vec3 planeNormal) {
+        for (int i = 0; i < 8; i++) {
+            Vec3 corner = new Vec3(
+                (i & 1) == 0 ? box.minX : box.maxX,
+                (i & 2) == 0 ? box.minY : box.maxY,
+                (i & 4) == 0 ? box.minZ : box.maxZ
+            );
+            if (corner.subtract(planePoint).dot(planeNormal) > 0.001) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static ViewNode createChildView(
+        Minecraft client, ViewNode parent, Portal portal, ClientLevel destWorld, Camera mainCamera
+    ) {
+        Vec3 cameraPos = portal.transformPoint(parent.cameraPos);
+        Vector3f right = transformDirection(portal, parent.right);
+        Vector3f up = transformDirection(portal, parent.up);
+        Vector3f forward = transformDirection(portal, parent.forward);
+
+        List<UUID> path = new ArrayList<>(parent.path);
+        path.add(portal.getUUID());
+        viewCameraLastUse.put(path, frameIndex);
+        Camera camera = viewCameras.computeIfAbsent(path, k -> new Camera());
+
+        // The camera is always right-handed. When the transformation has a reflection,
+        // the rendered image is the mirror image of the view, and it's flipped back when sampled
+        Vector3f renderRight = new Vector3f(forward).cross(up);
+        Quaternionf rotation = new Matrix3f(
+            renderRight.x, renderRight.y, renderRight.z,
+            up.x, up.y, up.z,
+            -forward.x, -forward.y, -forward.z
+        ).getNormalizedRotation(new Quaternionf());
+
+        ((IECamera) camera).ip_setupPortalView(
+            destWorld, client.player, cameraPos, rotation, mainCamera, IPGlobal.renderYourselfInPortal
+        );
+
+        return new ViewNode(parent, portal, destWorld, cameraPos, right, up, forward, path, camera);
+    }
+
+    private static Vector3f transformDirection(Portal portal, Vector3f direction) {
+        Vec3 result = portal.transformLocalVecNonScale(new Vec3(direction.x, direction.y, direction.z));
+        return new Vector3f((float) result.x, (float) result.y, (float) result.z).normalize();
     }
 
     private static ViewSlot getSlot(int index) {
@@ -391,15 +571,97 @@ public class PortalViewRendering {
         return slots.get(index);
     }
 
-    private static Camera getPortalCamera(Portal portal) {
-        portalCameraLastUse.put(portal.getUUID(), frameIndex);
-        return portalCameras.computeIfAbsent(portal.getUUID(), k -> new Camera());
+    /**
+     * Chooses the level renderer for a view, see {@link PooledRenderer}.
+     */
+    private static void assignRenderer(Minecraft client, ViewNode view) {
+        ClientLevel level = view.level;
+        SectionPos cameraSection = SectionPos.of(view.cameraPos);
+
+        List<PooledRenderer> candidates = new ArrayList<>(extraRenderers.getOrDefault(level, List.of()));
+        if (level != client.level) {
+            // the main view uses the current level's own level renderer
+            LevelRenderer primary = ClientWorldLoader.getWorldRenderer(level.dimension());
+            LevelExtractor primaryExtractor = ClientWorldLoader.getLevelExtractor(level.dimension());
+            if (primary != null && primaryExtractor != null) {
+                candidates.add(primaryRenderers.computeIfAbsent(
+                    primary, r -> new PooledRenderer(level, r, primaryExtractor, false)
+                ));
+            }
+        }
+
+        PooledRenderer chosen = null;
+        // the camera section does not change: nothing is recompiled
+        for (PooledRenderer candidate : candidates) {
+            if (cameraSection.equals(candidate.lastCameraSection)) {
+                chosen = candidate;
+                break;
+            }
+        }
+        // the nearest one that has not been used in this frame
+        if (chosen == null) {
+            chosen = candidates.stream()
+                .filter(c -> c.lastUsedFrame != frameIndex)
+                .min(Comparator.comparingDouble(c -> sectionDistance(c.lastCameraSection, cameraSection)))
+                .orElse(null);
+        }
+        // a new one, or the nearest one if there are too many
+        if (chosen == null) {
+            List<PooledRenderer> extras = extraRenderers.computeIfAbsent(level, k -> new ArrayList<>());
+            if (extras.size() < MAX_EXTRA_RENDERERS_PER_LEVEL) {
+                chosen = PooledRenderer.createExtra(client, level);
+                extras.add(chosen);
+                LevelExtractor primaryExtractor = ClientWorldLoader.getLevelExtractor(level.dimension());
+                if (primaryExtractor != null) {
+                    extraExtractors.computeIfAbsent(primaryExtractor, k -> new ArrayList<>()).add(chosen.extractor);
+                }
+            }
+            else {
+                chosen = candidates.stream()
+                    .min(Comparator.comparingDouble(c -> sectionDistance(c.lastCameraSection, cameraSection)))
+                    .orElseThrow();
+            }
+        }
+
+        view.renderer = chosen;
+        if (chosen.lastUsedFrame == frameIndex && !cameraSection.equals(chosen.lastCameraSection)) {
+            // keep the section grid of the view that uses it first
+            view.sharesRenderer = true;
+        }
+        else {
+            chosen.lastCameraSection = cameraSection;
+        }
+        chosen.lastUsedFrame = frameIndex;
+    }
+
+    private static double sectionDistance(@Nullable SectionPos a, SectionPos b) {
+        if (a == null) {
+            return Double.MAX_VALUE / 2;
+        }
+        double dx = a.x() - b.x();
+        double dy = a.y() - b.y();
+        double dz = a.z() - b.z();
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    private static void ensureRendererSize(LevelRenderer renderer, int width, int height) {
+        long size = ((long) width << 32) | (height & 0xFFFFFFFFL);
+        Long oldSize = rendererSizes.put(renderer, size);
+        if (oldSize == null || oldSize != size) {
+            renderer.resize(width, height);
+        }
     }
 
     private static void renderView(
-        Minecraft client, Portal portal, ClientLevel destWorld, ViewSlot slot,
-        DeltaTracker deltaTracker, Camera mainCamera
+        Minecraft client, ViewNode view, DeltaTracker deltaTracker, Camera mainCamera
     ) {
+        Portal portal = view.portal;
+        ViewSlot slot = view.slot;
+        assert portal != null && slot != null;
+        ClientLevel destWorld = view.level;
+        Camera camera = view.camera;
+        Vec3 cameraPos = view.cameraPos;
+
         GameRenderer gameRenderer = client.gameRenderer;
         IEGameRenderer_PortalView ieGameRenderer = (IEGameRenderer_PortalView) gameRenderer;
 
@@ -413,21 +675,22 @@ public class PortalViewRendering {
         RenderTarget target = slot.getTarget(width, height);
         FogRenderer fogRenderer = slot.fogRenderer;
 
-        // set up the camera that looks through the portal
-        Vec3 cameraPos = portal.transformPoint(mainCamera.position());
-        Quaternionf cameraRotation = portal.getRotationD().toMcQuaternion().mul(mainCamera.rotation());
-        Camera camera = getPortalCamera(portal);
-        ((IECamera) camera).ip_setupPortalView(destWorld, client.player, cameraPos, cameraRotation, mainCamera);
-
         float worldPartialTicks = deltaTracker.getGameTimeDeltaPartialTick(false);
 
         RenderTarget oldMainTarget = gameRenderer.mainRenderTarget;
         Camera oldMainCamera = gameRenderer.mainCamera;
         Lightmap oldLightmap = gameRenderer.lightmap;
         ClientLevel oldLevel = client.level;
+        ViewNode oldRenderingView = renderingView;
 
-        isRenderingView = true;
-        PortalRendering.pushPortalLayer(portal);
+        List<Portal> portalChain = new ArrayList<>();
+        for (ViewNode node = view; node != null && node.portal != null; node = node.parent) {
+            portalChain.add(0, node.portal);
+        }
+
+        renderingView = view;
+        isSharingRenderer = view.sharesRenderer;
+        portalChain.forEach(PortalRendering::pushPortalLayer);
         WorldRenderInfo.pushRenderInfo(
             new WorldRenderInfo.Builder()
                 .setWorld(destWorld)
@@ -474,7 +737,7 @@ public class PortalViewRendering {
 
                     // render
                     Matrix4f projectionMatrix = getProjectionMatrix(
-                        ieGameRenderer, cameraState, portal, cameraPos
+                        ieGameRenderer, cameraState, portal, cameraPos, view.flipped
                     );
                     // cameraState.projectionMatrix is kept unchanged, the oblique projection only goes to the GPU
 
@@ -510,24 +773,34 @@ public class PortalViewRendering {
                     gameRenderState.levelRenderState.cameraRenderState = mainCameraState;
                 }
             };
-            
-            if (destWorld == oldLevel) {
-                MirrorRenderer mirror = getMirrorRenderer(client, destWorld);
-                LevelRenderer oldRenderer = client.levelRenderer;
-                LevelExtractor oldExtractor = client.levelExtractor;
-                client.levelRenderer = mirror.renderer;
-                client.levelExtractor = mirror.extractor;
+
+            Runnable renderWithPooledRenderer = () -> {
+                PooledRenderer pooled = view.renderer;
+                assert pooled != null;
+                LevelRenderer switchedRenderer = client.levelRenderer;
+                LevelExtractor switchedExtractor = client.levelExtractor;
+                client.levelRenderer = pooled.renderer;
+                client.levelExtractor = pooled.extractor;
                 try {
-                    // the chunk update tracking sets are consumed by the level extractor
-                    ImmPtlClientChunkMap.withTrackingConsumer(mirror.extractor, renderTask);
+                    if (pooled.isExtra) {
+                        // the chunk update tracking sets are consumed by the level extractor
+                        ImmPtlClientChunkMap.withTrackingConsumer(pooled.extractor, renderTask);
+                    }
+                    else {
+                        renderTask.run();
+                    }
                 }
                 finally {
-                    client.levelRenderer = oldRenderer;
-                    client.levelExtractor = oldExtractor;
+                    client.levelRenderer = switchedRenderer;
+                    client.levelExtractor = switchedExtractor;
                 }
+            };
+
+            if (destWorld == oldLevel) {
+                renderWithPooledRenderer.run();
             }
             else {
-                ClientWorldLoader.withSwitchedWorld(destWorld, renderTask);
+                ClientWorldLoader.withSwitchedWorld(destWorld, renderWithPooledRenderer);
             }
         }
         finally {
@@ -536,8 +809,9 @@ public class PortalViewRendering {
             gameRenderer.lightmap = oldLightmap;
             gameRenderer.lighting().updateLevel(oldLevel.dimensionType().cardinalLightType());
             WorldRenderInfo.popRenderInfo();
-            PortalRendering.popPortalLayer();
-            isRenderingView = false;
+            portalChain.forEach(p -> PortalRendering.popPortalLayer());
+            renderingView = oldRenderingView;
+            isSharingRenderer = false;
         }
     }
 
@@ -548,7 +822,7 @@ public class PortalViewRendering {
      */
     private static Matrix4f getProjectionMatrix(
         IEGameRenderer_PortalView gameRenderer, CameraRenderState cameraState,
-        Portal portal, Vec3 cameraPos
+        Portal portal, Vec3 cameraPos, boolean flipped
     ) {
         Matrix4f projection = new Matrix4f(cameraState.projectionMatrix);
         PoseStack bobStack = new PoseStack();
@@ -557,6 +831,14 @@ public class PortalViewRendering {
             gameRenderer.ip_bobView(cameraState, bobStack);
         }
         projection.mul(bobStack.last().pose());
+
+        if (flipped) {
+            // The camera's horizontal axis is negated relative to the view,
+            // and the image is flipped back when sampled. Negate the x of both sides
+            // so that the image lines up with the screen (the view bobbing is not symmetric).
+            Matrix4f flipX = new Matrix4f().scaling(-1, 1, 1);
+            projection = new Matrix4f(flipX).mul(projection).mul(flipX);
+        }
 
         // the clipping plane in view space (camera-relative and rotated by the view rotation)
         Vec3 planePoint = portal.getDestPos().subtract(cameraPos);
@@ -606,44 +888,49 @@ public class PortalViewRendering {
         return new Matrix4f(projection).setRow(2, newRow2);
     }
 
+    // the global portals are not in the level's entity list
     public static void extractGlobalPortals(
         ClientLevel level, EntityRenderDispatcher entityRenderDispatcher,
         LevelRenderState levelRenderState, float partialTicks
     ) {
-        if (isRenderingView || renderedViews.isEmpty()) {
+        ViewNode view = renderingView;
+        if (view == null || view.children.isEmpty()) {
             return;
         }
         for (Portal portal : GlobalPortalStorage.getGlobalPortals(level)) {
-            if (renderedViews.containsKey(portal)) {
+            if (view.children.containsKey(portal)) {
                 levelRenderState.entityRenderStates.add(
                     entityRenderDispatcher.extractEntity(portal, partialTicks)
                 );
             }
         }
     }
-    
-    /**
-     * Called when the portal entity is submitted in the main view.
-     */
+
     public static boolean shouldRenderPortalEntity(Portal portal, Frustum frustum) {
         return frustum.isVisible(portal.getBoundingBox());
     }
 
+    /**
+     * Called when the portal entity is submitted, in the main view or in a portal view.
+     */
     public static void submitPortalSurface(
         Portal portal, PoseStack poseStack,
         SubmitNodeCollector submitNodeCollector, CameraRenderState camera
     ) {
-        if (isRenderingView) {
+        ViewNode view = renderingView;
+        if (view == null) {
             return;
         }
-        ViewSlot slot = renderedViews.get(portal);
-        if (slot == null) {
+        ViewNode child = view.children.get(portal);
+        if (child == null || child.slot == null) {
             return;
         }
+        RenderType renderType = child.isFlippedRelativeToParent() ?
+            child.slot.flippedRenderType : child.slot.renderType;
 
         // the pose stack is translated to the portal entity position
         submitNodeCollector.submitCustomGeometry(
-            poseStack, slot.renderType,
+            poseStack, renderType,
             (pose, buffer) -> portal.renderViewAreaMesh(
                 Vec3.ZERO,
                 (p0x, p0y, p0z, p1x, p1y, p1z, p2x, p2y, p2z) -> {

@@ -37,22 +37,18 @@ The mod is required on both the server and the client.
 * The config file is `config/immersive_portals.json` (there is no config screen).
   After editing it, run `/imm_ptl_client_debug reload_config`.
 
+### Portal views
+
+Each portal view renders the world again, like a second camera, so many visible portals cost frame rate.
+Two settings in `config/immersive_portals.json` limit the work:
+
+* `maxPortalLayer`: how deep portals seen through portals are rendered (default 5).
+* `portalRenderLimit`: the most portal views rendered in one frame.
+
 ### Not supported yet
 
-* Portals seen through other portals are not drawn (one layer of portals).
-* At most 2 portal views are rendered per frame (the nearest ones).
-* Mirrors are not drawn.
-* The player is not shown in portal views, and entities passing through a portal are not drawn on both sides.
+* The player is not shown in views into another dimension (it is shown in mirrors and same-dimension portals),
+  and entities passing through a portal are not drawn on both sides.
 * The dimension stack screen. Configure the dimension stack with `dimStackPreset` in the config file.
 * The portal wand's preview rendering.
 * Sodium and Iris compatibility.
-
-## Other
-
-[Wiki](https://qouteall.fun/immptl/wiki/)
-
-[Discord Server](https://discord.gg/BZxgURK)
-
-[Support qouteall on Patreon](https://www.patreon.com/qouteall)
-
-The forge version is currently maintained by @Nick1st
