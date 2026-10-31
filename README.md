@@ -20,8 +20,32 @@ This mod also provides some API for:
 
 [API description](https://qouteall.fun/immptl/wiki/API-for-Other-Mods.html).
 
-## How to run this code
-https://docs.minecraftforge.net/en/1.18.x/gettingstarted/#from-zero-to-modding
+## Minecraft 26.2 (Forge)
+
+This branch targets Minecraft 26.2 with Forge 65.1.5 or newer, and needs Java 25.
+
+Build the jar with `./gradlew build` (it ends up in `build/libs`).
+Run the game with `./gradlew runClient` or `./gradlew runServer`.
+
+The mod is required on both the server and the client.
+
+### Changes in this port
+
+* The portal rendering was rewritten for the Minecraft 26 renderer.
+  The view through a portal is rendered into an off-screen target before the main view,
+  and the portal surface shows that target.
+* The config file is `config/immersive_portals.json` (there is no config screen).
+  After editing it, run `/imm_ptl_client_debug reload_config`.
+
+### Not supported yet
+
+* Portals seen through other portals are not drawn (one layer of portals).
+* At most 2 portal views are rendered per frame (the nearest ones).
+* Mirrors are not drawn.
+* The player is not shown in portal views, and entities passing through a portal are not drawn on both sides.
+* The dimension stack screen. Configure the dimension stack with `dimStackPreset` in the config file.
+* The portal wand's preview rendering.
+* Sodium and Iris compatibility.
 
 ## Other
 
