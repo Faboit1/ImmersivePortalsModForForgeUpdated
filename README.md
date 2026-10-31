@@ -45,10 +45,18 @@ Two settings in `config/immersive_portals.json` limit the work:
 * `maxPortalLayer`: how deep portals seen through portals are rendered (default 5).
 * `portalRenderLimit`: the most portal views rendered in one frame.
 
+### Sodium and Iris
+
+* With Sodium, the world and the portal views render through Sodium's terrain renderer.
+  The views in the current dimension share its terrain renderer, since Sodium keeps all loaded chunks
+  instead of a grid around the camera.
+* With Iris and no shader pack, everything renders as with Sodium alone.
+* While an Iris shader pack is on, portals don't show the other side (teleporting still works).
+
 ### Not supported yet
 
 * The player is not shown in views into another dimension (it is shown in mirrors and same-dimension portals),
   and entities passing through a portal are not drawn on both sides.
 * The dimension stack screen. Configure the dimension stack with `dimStackPreset` in the config file.
 * The portal wand's preview rendering.
-* Sodium and Iris compatibility.
+* Portal views with an Iris shader pack.

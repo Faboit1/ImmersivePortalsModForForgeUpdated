@@ -38,4 +38,17 @@ public class IrisInterface {
 
 
     public static Invoker invoker = new Invoker();
+
+    /**
+     * Installs the Iris support when Iris is loaded.
+     */
+    public static void init(boolean irisLoaded) {
+        if (!irisLoaded) {
+            return;
+        }
+        IrisInterfaceReflection reflection = IrisInterfaceReflection.create();
+        if (reflection != null) {
+            invoker = reflection;
+        }
+    }
 }

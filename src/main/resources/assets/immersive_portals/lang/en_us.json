@@ -223,6 +223,7 @@
   "imm_ptl.a_dimension_of": "A dimension of %1$s",
   "imm_ptl.message_from_server": "[Immersive Portals] Message from server: ",
   "imm_ptl.incompatible_shaderpack": "[Immersive Portals] The current shaderpack is incompatible with Immersive Portals. Portal rendering may be very broken. If you want better portal rendering, it's recommended to try another shaderpack.",
+  "imm_ptl.portal_views_off_with_shaders": "[Immersive Portals] Portals don't show the other side while a shader pack is on. Teleporting through them still works.",
 
   "imm_ptl.item_group": "Immersive Portals",
   "imm_ptl.portal_helper_deprecated": "Portal Helper is now deprecated. It's recommended to use portal wand. Portal wand is easier to use and more powerful. It's recommended to use command %s to edit portal shape.",

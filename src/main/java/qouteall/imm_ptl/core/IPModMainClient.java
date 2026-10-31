@@ -1,5 +1,6 @@
 package qouteall.imm_ptl.core;
 
+import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.common.NeoForge;
 
 import qouteall.imm_ptl.core.render.PortalViewRendering;
@@ -13,6 +14,7 @@ import net.minecraft.network.chat.Component;
 import qouteall.q_misc_util.event.IPEventBus;
 import qouteall.imm_ptl.core.collision.CollisionHelper;
 import qouteall.imm_ptl.core.commands.ClientDebugCommand;
+import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
 import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
 import qouteall.imm_ptl.core.miscellaneous.DubiousThings;
 import qouteall.imm_ptl.core.miscellaneous.GcMonitor;
@@ -31,6 +33,9 @@ public class IPModMainClient {
     
     
     public static void init() {
+        SodiumInterface.init(ModList.get().isLoaded("sodium"));
+        IrisInterface.init(ModList.get().isLoaded("iris"));
+        
         ClientWorldLoader.init();
         
         ClientTeleportationManager.init();

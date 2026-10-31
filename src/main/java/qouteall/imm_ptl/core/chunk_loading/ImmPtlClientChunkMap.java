@@ -27,6 +27,7 @@ import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.ducks.IEMinecraftClient;
 import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
 import qouteall.imm_ptl.core.platform_specific.O_O;
+import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
 import qouteall.q_misc_util.my_util.SignalArged;
 
 import java.util.Arrays;
@@ -327,6 +328,10 @@ public class ImmPtlClientChunkMap extends ClientChunkCache {
         }
         
         this.level.onChunkLoaded(new ChunkPos(x, z));
+        // Sodium learns about loaded chunks from ClientChunkCache.replaceWithPacketData, which this overrides.
+        // Without it, Sodium renders no terrain at all.
+        // (Unloading reaches Sodium through ClientLevel.unload)
+        SodiumInterface.invoker.onClientChunkLoaded(this.level, x, z);
         O_O.postClientChunkLoadEvent(worldChunk);
         clientChunkLoadSignal.emit(worldChunk);
         

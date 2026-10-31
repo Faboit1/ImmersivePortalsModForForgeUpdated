@@ -50,9 +50,14 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.slf4j.Logger;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import qouteall.imm_ptl.core.CHelper;
 import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.chunk_loading.ImmPtlClientChunkMap;
+import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
+import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
 import qouteall.imm_ptl.core.ducks.IECamera;
 import qouteall.imm_ptl.core.mixin.client.render.IEGameRenderer_PortalView;
 import qouteall.imm_ptl.core.mixin.client.render.IELightmapRenderStateExtractor;
@@ -273,7 +278,7 @@ public class PortalViewRendering {
             LevelExtractor extractor = new LevelExtractor(
                 client, client.gameRenderer.gameRenderState().levelRenderState, renderer
             );
-            extractor.setLevel(level);
+            ClientWorldLoader.setExtractorLevel(extractor, level);
             extractor.onResourceManagerReload(client.getResourceManager());
             return new PooledRenderer(level, renderer, extractor, true);
         }
@@ -282,7 +287,7 @@ public class PortalViewRendering {
             if (!isExtra) {
                 return;
             }
-            extractor.setLevel(null);
+            ClientWorldLoader.setExtractorLevel(extractor, null);
             renderer.close();
             if (level.getChunkSource() instanceof ImmPtlClientChunkMap chunkMap) {
                 chunkMap.removeTrackingConsumer(extractor);
@@ -292,6 +297,15 @@ public class PortalViewRendering {
 
     // at most this many extra level renderers for one level
     private static final int MAX_EXTRA_RENDERERS_PER_LEVEL = 4;
+
+    /**
+     * Sodium's terrain renderer keeps the sections of all loaded chunks, not a grid around the camera,
+     * so the views of a level can share its own level renderer.
+     * Extra level renderers would also compete for the chunk load events of Sodium's chunk tracker, which is per level.
+     */
+    private static int getMaxExtraRenderersPerLevel() {
+        return SodiumInterface.invoker.isSodiumPresent() ? 0 : MAX_EXTRA_RENDERERS_PER_LEVEL;
+    }
 
     private static final Map<ClientLevel, List<PooledRenderer>> extraRenderers = new IdentityHashMap<>();
     // the state of the levels' own level renderers when used by the portal views
@@ -318,6 +332,8 @@ public class PortalViewRendering {
     private static @Nullable ViewNode renderingView;
 
     private static boolean isSharingRenderer = false;
+
+    private static boolean lastShaderPackInUse = false;
 
     public static void init() {
         NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> tick());
@@ -395,6 +411,20 @@ public class PortalViewRendering {
             return;
         }
         if (IPGlobal.renderMode == IPGlobal.RenderMode.none) {
+            return;
+        }
+        // With a shader pack, Iris renders the level into its own targets with the shader pack's programs.
+        // The portal views don't support that yet, so the portals show nothing.
+        boolean shaderPackInUse = IrisInterface.invoker.isShaders();
+        if (shaderPackInUse != lastShaderPackInUse) {
+            lastShaderPackInUse = shaderPackInUse;
+            if (shaderPackInUse) {
+                CHelper.printChat(
+                    Component.translatable("imm_ptl.portal_views_off_with_shaders").withStyle(ChatFormatting.GOLD)
+                );
+            }
+        }
+        if (shaderPackInUse) {
             return;
         }
 
@@ -579,8 +609,9 @@ public class PortalViewRendering {
         SectionPos cameraSection = SectionPos.of(view.cameraPos);
 
         List<PooledRenderer> candidates = new ArrayList<>(extraRenderers.getOrDefault(level, List.of()));
-        if (level != client.level) {
-            // the main view uses the current level's own level renderer
+        // the main view uses the current level's own level renderer, except with Sodium (see getMaxExtraRenderersPerLevel)
+        boolean usesMainRenderer = level == client.level && getMaxExtraRenderersPerLevel() == 0;
+        if (level != client.level || usesMainRenderer) {
             LevelRenderer primary = ClientWorldLoader.getWorldRenderer(level.dimension());
             LevelExtractor primaryExtractor = ClientWorldLoader.getLevelExtractor(level.dimension());
             if (primary != null && primaryExtractor != null) {
@@ -608,7 +639,7 @@ public class PortalViewRendering {
         // a new one, or the nearest one if there are too many
         if (chosen == null) {
             List<PooledRenderer> extras = extraRenderers.computeIfAbsent(level, k -> new ArrayList<>());
-            if (extras.size() < MAX_EXTRA_RENDERERS_PER_LEVEL) {
+            if (extras.size() < getMaxExtraRenderersPerLevel() || candidates.isEmpty()) {
                 chosen = PooledRenderer.createExtra(client, level);
                 extras.add(chosen);
                 LevelExtractor primaryExtractor = ClientWorldLoader.getLevelExtractor(level.dimension());
@@ -624,7 +655,11 @@ public class PortalViewRendering {
         }
 
         view.renderer = chosen;
-        if (chosen.lastUsedFrame == frameIndex && !cameraSection.equals(chosen.lastCameraSection)) {
+        if (usesMainRenderer) {
+            // the main view renders after the portal views and keeps its own camera
+            view.sharesRenderer = true;
+        }
+        else if (chosen.lastUsedFrame == frameIndex && !cameraSection.equals(chosen.lastCameraSection)) {
             // keep the section grid of the view that uses it first
             view.sharesRenderer = true;
         }
@@ -680,6 +715,7 @@ public class PortalViewRendering {
         RenderTarget oldMainTarget = gameRenderer.mainRenderTarget;
         Camera oldMainCamera = gameRenderer.mainCamera;
         Lightmap oldLightmap = gameRenderer.lightmap;
+        FogRenderer oldFogRenderer = gameRenderer.fogRenderer;
         ClientLevel oldLevel = client.level;
         ViewNode oldRenderingView = renderingView;
 
@@ -702,6 +738,8 @@ public class PortalViewRendering {
         gameRenderer.mainCamera = camera;
         // the level renderer binds gameRenderer.levelLightmap()
         gameRenderer.lightmap = slot.lightmap;
+        // Sodium takes the terrain fog from the game renderer's fog renderer
+        gameRenderer.fogRenderer = fogRenderer;
         try {
             Runnable renderTask = () -> {
                 gameRenderer.lighting().updateLevel(destWorld.dimensionType().cardinalLightType());
@@ -758,6 +796,8 @@ public class PortalViewRendering {
                     RenderSystem.setProjectionMatrix(
                         projectionMatrixBuffer.getBuffer(projectionMatrix), ProjectionType.PERSPECTIVE
                     );
+                    // the main view sets it again in GameRenderer.renderLevel
+                    SodiumInterface.invoker.setTerrainProjectionMatrix(projectionMatrix);
                     fogRenderer.updateBuffer(cameraState.fogData);
                     GpuBufferSlice terrainFog = fogRenderer.getBuffer(FogRenderer.FogMode.WORLD);
                     client.levelRenderer.render(
@@ -807,6 +847,7 @@ public class PortalViewRendering {
             gameRenderer.mainRenderTarget = oldMainTarget;
             gameRenderer.mainCamera = oldMainCamera;
             gameRenderer.lightmap = oldLightmap;
+            gameRenderer.fogRenderer = oldFogRenderer;
             gameRenderer.lighting().updateLevel(oldLevel.dimensionType().cardinalLightType());
             WorldRenderInfo.popRenderInfo();
             portalChain.forEach(p -> PortalRendering.popPortalLayer());

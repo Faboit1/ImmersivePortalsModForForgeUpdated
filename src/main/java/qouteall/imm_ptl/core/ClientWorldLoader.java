@@ -168,6 +168,13 @@ public class ClientWorldLoader {
     }
     
     public static void cleanUp() {
+        // unbind the other dimensions' level renderers from their levels (Sodium frees its terrain buffers then)
+        LEVEL_EXTRACTOR_MAP.values().forEach(levelExtractor -> {
+            if (levelExtractor != CLIENT.levelExtractor && levelExtractor.levelRenderer != CLIENT.levelRenderer) {
+                setExtractorLevel(levelExtractor, null);
+            }
+        });
+        
         WORLD_RENDERER_MAP.values().forEach(
             ClientWorldLoader::disposeWorldRenderer
         );
@@ -181,6 +188,25 @@ public class ClientWorldLoader {
         LEVEL_EXTRACTOR_MAP.clear();
         
         isInitialized = false;
+    }
+    
+    /**
+     * Sets the level of a level extractor that is not the current one.
+     * Sodium binds its terrain renderer to the level in {@link LevelExtractor#setLevel},
+     * and takes the terrain renderer of {@link Minecraft#levelRenderer}, not of the extractor's level renderer.
+     * Without switching it, creating another dimension's level renderer would make
+     * the current dimension's terrain renderer switch to the other dimension.
+     */
+    public static void setExtractorLevel(LevelExtractor levelExtractor, @Nullable ClientLevel level) {
+        LevelRenderer originalLevelRenderer = CLIENT.levelRenderer;
+        // the fields are made accessible by access transformer
+        CLIENT.levelRenderer = levelExtractor.levelRenderer;
+        try {
+            levelExtractor.setLevel(level);
+        }
+        finally {
+            CLIENT.levelRenderer = originalLevelRenderer;
+        }
     }
     
     private static void disposeWorldRenderer(LevelRenderer worldRenderer) {
@@ -205,7 +231,7 @@ public class ClientWorldLoader {
         LevelRenderer worldRenderer = WORLD_RENDERER_MAP.get(dimension);
         LevelExtractor levelExtractor = LEVEL_EXTRACTOR_MAP.remove(dimension);
         if (levelExtractor != null) {
-            levelExtractor.setLevel(null);
+            setExtractorLevel(levelExtractor, null);
         }
         disposeWorldRenderer(worldRenderer);
         WORLD_RENDERER_MAP.remove(dimension);
@@ -425,7 +451,7 @@ public class ClientWorldLoader {
             // all worlds share the same tick rate manager
             ((IEClientWorld) newWorld).ip_setTickRateManager(CLIENT.level.tickRateManager());
 
-            levelExtractor.setLevel(newWorld);
+            setExtractorLevel(levelExtractor, newWorld);
             
             levelExtractor.onResourceManagerReload(CLIENT.getResourceManager());
             
