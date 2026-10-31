@@ -12,7 +12,6 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.imm_ptl.core.network.IPPayloadRegistry;
 
-import java.util.List;
 
 @Mixin(ServerboundCustomPayloadPacket.class)
 public class MixinServerboundCustomPayloadPacket {
@@ -21,6 +20,8 @@ public class MixinServerboundCustomPayloadPacket {
     @Final
     private CustomPacketPayload payload;
     
+    // resolve ImmPtl payload types (queried when a packet is encoded/decoded,
+    // so it does not depend on class init order)
     @ModifyArg(
         method = "<clinit>",
         at = @At(
@@ -28,10 +29,12 @@ public class MixinServerboundCustomPayloadPacket {
             target = "Lnet/minecraft/network/protocol/common/custom/CustomPacketPayload;codec(Lnet/minecraft/network/protocol/common/custom/CustomPacketPayload$FallbackProvider;Ljava/util/List;)Lnet/minecraft/network/codec/StreamCodec;",
             ordinal = 0
         ),
-        index = 1
+        index = 0
     )
-    private static List<?> ip_addPayloadTypes(List<?> types) {
-        return IPPayloadRegistry.withServerboundTypes(types);
+    private static CustomPacketPayload.FallbackProvider<?> ip_wrapFallback(
+        CustomPacketPayload.FallbackProvider<?> fallback
+    ) {
+        return IPPayloadRegistry.wrapServerboundFallback(fallback);
     }
     
     @SuppressWarnings({"unchecked", "rawtypes"})

@@ -9,6 +9,8 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongPredicate;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ChunkHolder;
+import net.minecraft.server.level.FullChunkStatus;
+import net.minecraft.server.level.ChunkLevel;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ChunkResult;
 import net.minecraft.server.level.DistanceManager;
@@ -189,8 +191,17 @@ public class ImmPtlChunkTickets {
                 return true;
             }
             
-            ChunkResult<LevelChunk> resultNow = chunkHolder.getEntityTickingChunkFuture()
-                .getNow(null);
+            int radius = getLoadingRadius();
+            if (chunkHolder.getTicketLevel() > ChunkLevel.byStatus(FullChunkStatus.FULL) - radius) {
+                // the ticket has not been processed by the distance manager yet,
+                // the futures are still the "unloaded" placeholders
+                return false;
+            }
+            
+            // radius 2 makes the center chunk entity-ticking, radius 1 makes it block-ticking
+            ChunkResult<LevelChunk> resultNow = (radius >= 2 ?
+                chunkHolder.getEntityTickingChunkFuture() : chunkHolder.getTickingChunkFuture()
+            ).getNow(null);
             
             if (resultNow == null) {
                 return false;

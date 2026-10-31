@@ -30,8 +30,6 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -254,7 +252,6 @@ public class ImplRemoteProcedureCall {
         }
     }
 
-    @OnlyIn(Dist.CLIENT)
     private static void clientTellFailure() {
         Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(Component.literal(
                 "The client failed to process a packet from server. See the log for details."

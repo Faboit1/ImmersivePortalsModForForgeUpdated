@@ -10,15 +10,15 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import com.mojang.logging.LogUtils;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 import qouteall.imm_ptl.core.mixin.common.networking.MixinClientboundCustomPayloadPacket;
 import qouteall.imm_ptl.core.mixin.common.networking.MixinServerboundCustomPayloadPacket;
 import qouteall.q_misc_util.ImplRemoteProcedureCall;
 import qouteall.q_misc_util.MiscNetworking;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -34,6 +34,8 @@ import java.util.Map;
  * Mod presence and version checking is done by Forge's channel negotiation, see {@link ImmPtlNetworkConfig}.
  */
 public final class IPPayloadRegistry {
+    private static final Logger LOGGER = LogUtils.getLogger();
+    
     @FunctionalInterface
     public interface ClientHandler<T> {
         void handle(T payload, ClientGamePacketListener listener);
@@ -117,24 +119,59 @@ public final class IPPayloadRegistry {
     /**
      * Used by the mixins into the vanilla custom payload codecs.
      */
+    /**
+     * Makes the vanilla gameplay payload codec resolve ImmPtl payload types.
+     * The vanilla codec builds its type map in the static initializer, which can run while this class
+     * is still being initialized (via PacketRedirection -> GameProtocols), so the types are looked up
+     * lazily through the fallback instead.
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static <L extends List> L withClientboundTypes(L vanillaTypes) {
-        List result = new ArrayList(vanillaTypes);
-        for (S2CEntry<?> entry : S2C.values()) {
-            result.add(new CustomPacketPayload.TypeAndCodec(entry.type(), entry.codec()));
-        }
-        return (L) result;
+    public static <B extends FriendlyByteBuf> CustomPacketPayload.FallbackProvider<B> wrapClientboundFallback(
+        CustomPacketPayload.FallbackProvider<B> fallback
+    ) {
+        return id -> {
+            S2CEntry<?> entry = S2C.get(id);
+            if (entry != null) {
+                return withDecodeErrorLogging(id, (StreamCodec) entry.codec());
+            }
+            return fallback.create(id);
+        };
     }
-
+    
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static <L extends List> L withServerboundTypes(L vanillaTypes) {
-        List result = new ArrayList(vanillaTypes);
-        for (C2SEntry<?> entry : C2S.values()) {
-            result.add(new CustomPacketPayload.TypeAndCodec(entry.type(), entry.codec()));
-        }
-        return (L) result;
+    public static <B extends FriendlyByteBuf> CustomPacketPayload.FallbackProvider<B> wrapServerboundFallback(
+        CustomPacketPayload.FallbackProvider<B> fallback
+    ) {
+        return id -> {
+            C2SEntry<?> entry = C2S.get(id);
+            if (entry != null) {
+                return withDecodeErrorLogging(id, (StreamCodec) entry.codec());
+            }
+            return fallback.create(id);
+        };
     }
-
+    
+    // vanilla only reports "Failed to decode packet" when disconnecting, log the cause
+    private static <B, T> StreamCodec<B, T> withDecodeErrorLogging(Identifier id, StreamCodec<B, T> codec) {
+        return new StreamCodec<>() {
+            @Override
+            public T decode(B input) {
+                try {
+                    return codec.decode(input);
+                }
+                catch (RuntimeException e) {
+                    LOGGER.error("[ImmPtl] Failed to decode payload {}", id, e);
+                    throw e;
+                }
+            }
+            
+            @Override
+            public void encode(B output, T value) {
+                codec.encode(output, value);
+            }
+        };
+    }
+    
     /**
      * Called when a serverbound custom payload packet is handled (initially on the networking thread).
      * @return whether the payload belongs to ImmPtl

@@ -30,6 +30,9 @@ import qouteall.imm_ptl.core.platform_specific.O_O;
 import qouteall.q_misc_util.my_util.SignalArged;
 
 import java.util.Arrays;
+import org.jetbrains.annotations.Nullable;
+import java.util.IdentityHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -63,12 +66,95 @@ public class ImmPtlClientChunkMap extends ClientChunkCache {
      * from these sets (see {@link net.minecraft.client.renderer.extract.LevelExtractor}).
      * Vanilla stores them in its private storage, so they are maintained here.
      * Double-buffered: one is being filled while the other is consumed by the renderer.
+     * <p>
+     * A level can have more than one level extractor (the extra one renders the views through
+     * the portals that lead to the same dimension), and each of them must see every update,
+     * so each consumer has its own sets.
      */
-    private final LongOpenHashSet[] addedEmptySectionsSets = {new LongOpenHashSet(), new LongOpenHashSet()};
-    private final LongOpenHashSet[] removedEmptySectionsSets = {new LongOpenHashSet(), new LongOpenHashSet()};
-    private final LongOpenHashSet[] addedLoadedChunksSets = {new LongOpenHashSet(), new LongOpenHashSet()};
-    private final LongOpenHashSet[] removedLoadedChunksSets = {new LongOpenHashSet(), new LongOpenHashSet()};
-    private int updatingSetsIndex = 0;
+    private static final class UpdateTracking {
+        final LongOpenHashSet[] addedEmptySections = {new LongOpenHashSet(), new LongOpenHashSet()};
+        final LongOpenHashSet[] removedEmptySections = {new LongOpenHashSet(), new LongOpenHashSet()};
+        final LongOpenHashSet[] addedLoadedChunks = {new LongOpenHashSet(), new LongOpenHashSet()};
+        final LongOpenHashSet[] removedLoadedChunks = {new LongOpenHashSet(), new LongOpenHashSet()};
+        int updatingIndex = 0;
+        
+        void onChunkLoaded(long chunkPos, boolean loaded) {
+            (loaded ? addedLoadedChunks : removedLoadedChunks)[updatingIndex].add(chunkPos);
+            (loaded ? removedLoadedChunks : addedLoadedChunks)[updatingIndex].remove(chunkPos);
+        }
+        
+        void onSectionEmptiness(long sectionNode, boolean empty) {
+            (empty ? addedEmptySections : removedEmptySections)[updatingIndex].add(sectionNode);
+            (empty ? removedEmptySections : addedEmptySections)[updatingIndex].remove(sectionNode);
+        }
+        
+        void flip() {
+            updatingIndex = (updatingIndex + 1) % 2;
+            addedEmptySections[updatingIndex].clear();
+            removedEmptySections[updatingIndex].clear();
+            addedLoadedChunks[updatingIndex].clear();
+            removedLoadedChunks[updatingIndex].clear();
+        }
+    }
+    
+    private final UpdateTracking mainTracking = new UpdateTracking();
+    private final Map<Object, UpdateTracking> extraTrackings = new IdentityHashMap<>();
+    private final List<UpdateTracking> allTrackings = new ArrayList<>(List.of(mainTracking));
+    
+    // the consumer that is extracting now, null for the level's own level extractor
+    private static @Nullable Object currentTrackingConsumer = null;
+    
+    /**
+     * Runs the task with the update tracking sets of another consumer.
+     * The consumer's sets are created on first use and receive all currently loaded chunks.
+     */
+    public static void withTrackingConsumer(Object consumer, Runnable task) {
+        Object old = currentTrackingConsumer;
+        currentTrackingConsumer = consumer;
+        try {
+            task.run();
+        }
+        finally {
+            currentTrackingConsumer = old;
+        }
+    }
+    
+    public void removeTrackingConsumer(Object consumer) {
+        UpdateTracking removed = extraTrackings.remove(consumer);
+        if (removed != null) {
+            allTrackings.remove(removed);
+        }
+    }
+    
+    private UpdateTracking getCurrentTracking() {
+        if (currentTrackingConsumer == null) {
+            return mainTracking;
+        }
+        return extraTrackings.computeIfAbsent(currentTrackingConsumer, k -> {
+            UpdateTracking tracking = new UpdateTracking();
+            for (LevelChunk chunk : chunkMapForMainThread.values()) {
+                tracking.onChunkLoaded(chunk.getPos().pack(), true);
+                forEachSection(chunk, (sectionNode, empty) -> tracking.onSectionEmptiness(sectionNode, empty));
+            }
+            allTrackings.add(tracking);
+            return tracking;
+        });
+    }
+    
+    private interface SectionVisitor {
+        void accept(long sectionNode, boolean empty);
+    }
+    
+    private static void forEachSection(LevelChunk chunk, SectionVisitor visitor) {
+        ChunkPos chunkPos = chunk.getPos();
+        LevelChunkSection[] sections = chunk.getSections();
+        for (int sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+            long sectionNode = SectionPos.asLong(
+                chunkPos.x(), chunk.getSectionYFromSectionIndex(sectionIndex), chunkPos.z()
+            );
+            visitor.accept(sectionNode, sections[sectionIndex].hasOnlyAir());
+        }
+    }
     
     public ImmPtlClientChunkMap(ClientLevel clientWorld, int loadDistance) {
         super(clientWorld, 1);
@@ -78,83 +164,68 @@ public class ImmPtlClientChunkMap extends ClientChunkCache {
     }
     
     private void onChunkAdded(LevelChunk chunk) {
-        ChunkPos chunkPos = chunk.getPos();
-        addedLoadedChunksSets[updatingSetsIndex].add(chunkPos.pack());
-        removedLoadedChunksSets[updatingSetsIndex].remove(chunkPos.pack());
+        long chunkPos = chunk.getPos().pack();
+        for (UpdateTracking tracking : allTrackings) {
+            tracking.onChunkLoaded(chunkPos, true);
+        }
         refreshEmptySections(chunk);
     }
     
     private void onChunkRemoved(LevelChunk chunk) {
-        ChunkPos chunkPos = chunk.getPos();
-        removedLoadedChunksSets[updatingSetsIndex].add(chunkPos.pack());
-        addedLoadedChunksSets[updatingSetsIndex].remove(chunkPos.pack());
-        LevelChunkSection[] sections = chunk.getSections();
-        for (int sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
-            long sectionNode = SectionPos.asLong(
-                chunkPos.x(), chunk.getSectionYFromSectionIndex(sectionIndex), chunkPos.z()
-            );
-            removedEmptySectionsSets[updatingSetsIndex].add(sectionNode);
-            addedEmptySectionsSets[updatingSetsIndex].remove(sectionNode);
+        long chunkPos = chunk.getPos().pack();
+        for (UpdateTracking tracking : allTrackings) {
+            tracking.onChunkLoaded(chunkPos, false);
         }
+        // the sections of an unloaded chunk are not empty sections anymore
+        forEachSection(chunk, (sectionNode, empty) -> {
+            for (UpdateTracking tracking : allTrackings) {
+                tracking.onSectionEmptiness(sectionNode, false);
+            }
+        });
     }
     
     private void refreshEmptySections(LevelChunk chunk) {
-        ChunkPos chunkPos = chunk.getPos();
-        LevelChunkSection[] sections = chunk.getSections();
-        for (int sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
-            long sectionNode = SectionPos.asLong(
-                chunkPos.x(), chunk.getSectionYFromSectionIndex(sectionIndex), chunkPos.z()
-            );
-            if (sections[sectionIndex].hasOnlyAir()) {
-                addedEmptySectionsSets[updatingSetsIndex].add(sectionNode);
-                removedEmptySectionsSets[updatingSetsIndex].remove(sectionNode);
+        forEachSection(chunk, (sectionNode, empty) -> {
+            for (UpdateTracking tracking : allTrackings) {
+                tracking.onSectionEmptiness(sectionNode, empty);
             }
-            else {
-                removedEmptySectionsSets[updatingSetsIndex].add(sectionNode);
-                addedEmptySectionsSets[updatingSetsIndex].remove(sectionNode);
-            }
-        }
+        });
     }
     
     @Override
     public LongOpenHashSet addedEmptySections() {
-        return addedEmptySectionsSets[updatingSetsIndex];
+        UpdateTracking tracking = getCurrentTracking();
+        return tracking.addedEmptySections[tracking.updatingIndex];
     }
     
     @Override
     public LongOpenHashSet removedEmptySections() {
-        return removedEmptySectionsSets[updatingSetsIndex];
+        UpdateTracking tracking = getCurrentTracking();
+        return tracking.removedEmptySections[tracking.updatingIndex];
     }
     
     @Override
     public LongOpenHashSet addedLoadedChunks() {
-        return addedLoadedChunksSets[updatingSetsIndex];
+        UpdateTracking tracking = getCurrentTracking();
+        return tracking.addedLoadedChunks[tracking.updatingIndex];
     }
     
     @Override
     public LongOpenHashSet removedLoadedChunks() {
-        return removedLoadedChunksSets[updatingSetsIndex];
+        UpdateTracking tracking = getCurrentTracking();
+        return tracking.removedLoadedChunks[tracking.updatingIndex];
     }
     
     @Override
     public void flipUpdateTrackingSets() {
-        updatingSetsIndex = (updatingSetsIndex + 1) % 2;
-        addedEmptySectionsSets[updatingSetsIndex].clear();
-        removedEmptySectionsSets[updatingSetsIndex].clear();
-        addedLoadedChunksSets[updatingSetsIndex].clear();
-        removedLoadedChunksSets[updatingSetsIndex].clear();
+        getCurrentTracking().flip();
     }
     
     @Override
     public void onSectionEmptinessChanged(int sectionX, int sectionY, int sectionZ, boolean empty) {
         long sectionNode = SectionPos.asLong(sectionX, sectionY, sectionZ);
-        if (empty) {
-            addedEmptySectionsSets[updatingSetsIndex].add(sectionNode);
-            removedEmptySectionsSets[updatingSetsIndex].remove(sectionNode);
-        }
-        else {
-            removedEmptySectionsSets[updatingSetsIndex].add(sectionNode);
-            addedEmptySectionsSets[updatingSetsIndex].remove(sectionNode);
+        for (UpdateTracking tracking : allTrackings) {
+            tracking.onSectionEmptiness(sectionNode, empty);
         }
     }
     

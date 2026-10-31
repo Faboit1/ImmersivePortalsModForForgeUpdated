@@ -7,8 +7,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Direction;
 import qouteall.q_misc_util.my_util.Tuple;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -29,7 +27,6 @@ import qouteall.q_misc_util.my_util.DQuaternion;
  * The right side of multiplication applies first.
  * finalRot = rawCameraRotation * gravity * animationDelta * portalRot
  */
-@OnlyIn(Dist.CLIENT)
 public class TransformationManager {
     
     // the animation delta gradually reduces to identity
@@ -278,7 +275,6 @@ public class TransformationManager {
     
     public static boolean isCalculatingViewBobbingOffset = false;
     
-    @OnlyIn(Dist.CLIENT)
     public static class RemoteCallables {
         public static void enableIsometricView(float viewLength) {
             isometricViewLength = viewLength;
