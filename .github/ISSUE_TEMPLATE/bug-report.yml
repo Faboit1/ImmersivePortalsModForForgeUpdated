@@ -19,8 +19,8 @@ body:
       required: true
   - type: input
     attributes:
-      label: Forge Version
-      description: What version of Forge are you running? This can be found on the installation jar you have downloaded, in the Mod Options menu, or the profile's version. Please note "latest" is NOT a version. *If you are reporting a bug that also exists on the Fabric version, please report it **[here](https://github.com/iPortalTeam/ImmersivePortalsMod/issues)** instead.*
+      label: NeoForge Version
+      description: What version of NeoForge are you running? This can be found on the installation jar you have downloaded, in the Mod Options menu, or the profile's version. Please note "latest" is NOT a version. *If you are reporting a bug that also exists on the Fabric version, please report it **[here](https://github.com/iPortalTeam/ImmersivePortalsMod/issues)** instead.*
       placeholder: "36.2.39"
     validations:
       required: true
@@ -79,7 +79,7 @@ body:
           required: true
         - label: I have confirmed this does not happen on the fabric version (If it does please report to **[here](https://github.com/iPortalTeam/ImmersivePortalsMod/issues)** instead).
           required: true
-        - label: I have confirmed I'm not using a hybrid server (Magma, Cauldron) or a different (non official) Forge Server release.
+        - label: I have confirmed I'm not using a hybrid server (Magma, Cauldron) or a different (non official) NeoForge server release.
           required: true
         - label: I have confirmed this issue is unique and has not been reported already.
           required: true

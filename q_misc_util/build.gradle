@@ -1,6 +1,0 @@
-archivesBaseName = "q_misc_util"
-group = "qouteall"
-
-dependencies {
-//    api project(":imm_ptl_core")
-}

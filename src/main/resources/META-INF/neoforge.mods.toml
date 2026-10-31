@@ -1,0 +1,43 @@
+license="Apache-2.0"
+issueTrackerURL="https://github.com/Faboit1/ImmersivePortalsModForForgeUpdated/issues"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="Immersive Portals"
+displayURL="https://qouteall.fun/immptl"
+iconFile="icon.png"
+authors="qouteall"
+credits="Nick1st and the iPortalTeam (Forge/NeoForge ports)"
+description='''
+See through portals and travel between dimensions seamlessly.
+'''
+
+[[mixins]]
+config="imm_ptl.mixins.json"
+
+[[mixins]]
+config="imm_ptl_platform.mixins.json"
+
+[[mixins]]
+config="imm_ptl_peripheral.mixins.json"
+
+[[mixins]]
+config="q_misc_util.mixins.json"
+
+[[accessTransformers]]
+file="META-INF/accesstransformer.cfg"
+
+[[dependencies.${mod_id}]]
+modId="neoforge"
+type="required"
+versionRange="${neo_version_range}"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.${mod_id}]]
+modId="minecraft"
+type="required"
+versionRange="${minecraft_version_range}"
+ordering="NONE"
+side="BOTH"

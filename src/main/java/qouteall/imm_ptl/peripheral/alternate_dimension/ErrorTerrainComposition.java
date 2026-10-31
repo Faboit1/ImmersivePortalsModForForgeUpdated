@@ -1,13 +1,11 @@
 package qouteall.imm_ptl.peripheral.alternate_dimension;
 
-import net.minecraft.core.Registry;
-import net.minecraft.util.LinearCongruentialGenerator;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-
-import java.util.Random;
 
 public class ErrorTerrainComposition {
     
@@ -122,6 +120,10 @@ public class ErrorTerrainComposition {
     public static final RegionErrorTerrainGenerator.Composition treasured = (
         worldY, funcValue, middle, upMiddle, downMiddle, worldX, worldZ
     ) -> {
+        if (worldY > 32) {
+            return air;
+        }
+        
         double upPoint = Math.max(middle, Math.max(upMiddle, downMiddle));
         double splitPoint = Mth.lerp(
             Math.abs(worldY - 32) / 32.0,
@@ -130,9 +132,7 @@ public class ErrorTerrainComposition {
         );
         if (funcValue > splitPoint) {
             if (((int) funcValue) % 37 == 0) {
-                Block randomBlock = Registry.BLOCK.getRandom(new Random(
-                    LinearCongruentialGenerator.next(worldX, LinearCongruentialGenerator.next(worldY, worldZ))
-                )).get().value();
+                Block randomBlock = BuiltInRegistries.BLOCK.getRandom(RandomSource.create()).get().value();
                 //player should not get beacon so easily
                 if (randomBlock == Blocks.BEACON) {
                     randomBlock = Blocks.AIR;

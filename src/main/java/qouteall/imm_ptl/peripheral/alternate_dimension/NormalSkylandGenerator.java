@@ -1,97 +1,239 @@
 package qouteall.imm_ptl.peripheral.alternate_dimension;
 
+import net.minecraft.world.level.levelgen.DensityFunctions;
+import net.minecraft.world.level.levelgen.NoiseRouter;
+import com.google.common.base.Suppliers;
+import com.mojang.datafixers.DataFixer;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
-import net.minecraft.data.worldgen.TerrainProvider;
+import net.minecraft.core.HolderGetter;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.HolderSet;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.RegistryOps;
-import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.biome.BiomeSource;
-import net.minecraft.world.level.biome.MultiNoiseBiomeSource;
-import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.levelgen.*;
-import net.minecraft.world.level.levelgen.structure.StructureSet;
-import net.minecraft.world.level.levelgen.synth.NormalNoise;
-import qouteall.imm_ptl.peripheral.mixin.common.alternate_dimension.IENoiseGeneratorSettings;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ChunkMap;
+import net.minecraft.server.level.ServerLevel;
 
-public class NormalSkylandGenerator extends DelegatedChunkGenerator {
+import net.minecraft.tags.TagKey;
+import net.minecraft.util.thread.BlockableEventLoop;
+import net.minecraft.world.level.StructureManager;
+import net.minecraft.world.level.biome.*;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
+import net.minecraft.world.level.chunk.LightChunkGetter;
+import net.minecraft.world.level.entity.ChunkStatusUpdateListener;
+import net.minecraft.world.level.levelgen.DensityFunction;
+import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
+import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
+import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.levelgen.blending.Blender;
+import net.minecraft.world.level.levelgen.placement.PlacedFeature;
+import net.minecraft.world.level.levelgen.structure.StructureSet;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
+import net.minecraft.world.level.levelgen.synth.NormalNoise;
+import net.minecraft.world.level.storage.LevelStorageSource;
+import org.jetbrains.annotations.NotNull;
+import qouteall.imm_ptl.peripheral.mixin.common.alternate_dimension.IEChunkAccess_AlternateDim;
+import qouteall.imm_ptl.peripheral.mixin.common.alternate_dimension.IENoiseRouterData;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
+
+/**
+ * It extends NoiseBasedChunkGenerator, because in
+ * the ChunkMap constructor
+ * it uses instanceof to initialize random source.
+ */
+public class NormalSkylandGenerator extends NoiseBasedChunkGenerator {
     
-    public static final Codec<NormalSkylandGenerator> codec = RecordCodecBuilder.create(
+    public static final MapCodec<NormalSkylandGenerator> MAP_CODEC = RecordCodecBuilder.mapCodec(
         instance -> instance.group(
-                Codec.LONG.fieldOf("seed").stable().forGetter(g -> g.seed),
-                
-                RegistryOps.retrieveRegistry(Registry.STRUCTURE_SET_REGISTRY).forGetter(g -> g.structureSets),
-                RegistryOps.retrieveRegistry(Registry.BIOME_REGISTRY).forGetter(g -> g.biomeRegistry),
-                RegistryOps.retrieveRegistry(Registry.NOISE_REGISTRY).forGetter(g -> g.noiseRegistry)
+                RegistryOps.retrieveGetter(Registries.BIOME),
+                RegistryOps.retrieveGetter(Registries.DENSITY_FUNCTION),
+                RegistryOps.retrieveGetter(Registries.NOISE),
+                RegistryOps.retrieveGetter(Registries.NOISE_SETTINGS),
+                RegistryOps.retrieveGetter(Registries.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST),
+                Codec.LONG.optionalFieldOf("seed", 0L).forGetter(g -> g.seed)
             )
             .apply(instance, NormalSkylandGenerator::create)
     );
     
-    public static NormalSkylandGenerator create(
-        Long seed, Registry<StructureSet> structureSets, Registry<Biome> biomeRegistry,
-        Registry<NormalNoise.NoiseParameters> noiseRegistry
-    ) {
-        MultiNoiseBiomeSource biomeSource = MultiNoiseBiomeSource.Preset.OVERWORLD.biomeSource(
-            biomeRegistry, true
-        );
-        
-        NoiseGeneratorSettings skylandSetting = IENoiseGeneratorSettings.ip_floatingIslands();
-        
-        // vanilla copy
-        final NoiseSettings END_NOISE_SETTINGS = NoiseSettings.create(
-            0, 128, new NoiseSamplingSettings(2.0D, 1.0D, 80.0D, 160.0D),
-            new NoiseSlider(-23.4375D, 64, -46), new NoiseSlider(-0.234375D, 7, 1),
-            2, 1, TerrainProvider.floatingIslands()
-        );
-        
-        // replace the noise setting
-        skylandSetting = new NoiseGeneratorSettings(
-            END_NOISE_SETTINGS,
-            skylandSetting.defaultBlock(), skylandSetting.defaultFluid(),
-            skylandSetting.noiseRouter(), skylandSetting.surfaceRule(), skylandSetting.seaLevel(),
-            skylandSetting.disableMobGeneration(), skylandSetting.aquifersEnabled(),
-            skylandSetting.oreVeinsEnabled(), skylandSetting.useLegacyRandomSource()
-        );
-        
-        NoiseBasedChunkGenerator islandChunkGenerator = new NoiseBasedChunkGenerator(
-            structureSets, noiseRegistry,
-            biomeSource, seed, Holder.direct(skylandSetting)
-        );
-        
-        return new NormalSkylandGenerator(
-            seed, structureSets, biomeSource, islandChunkGenerator,
-            biomeRegistry, noiseRegistry
-        );
-    }
+    private final RandomState delegatedRandomState;
     
-    public final long seed;
-    public final Registry<Biome> biomeRegistry;
-    public final Registry<NormalNoise.NoiseParameters> noiseRegistry;
+    private final HolderGetter<Biome> biomeHolderGetter;
+    private final HolderGetter<DensityFunction> densityFunctionHolderGetter;
+    private final HolderGetter<NormalNoise.NoiseParameters> noiseParametersHolderGetter;
+    private final long seed;
     
     public NormalSkylandGenerator(
-        long seed,
-        Registry<StructureSet> structureSets,
-        BiomeSource biomeSource, ChunkGenerator delegate,
-        Registry<Biome> biomeRegistry,
-        Registry<NormalNoise.NoiseParameters> noiseRegistry
+        BiomeSource biomeSource,
+        Holder<NoiseGeneratorSettings> noiseGeneratorSettings,
+        
+        NoiseBasedChunkGenerator delegate,
+        
+        HolderGetter<Biome> biomeHolderGetter,
+        HolderGetter<DensityFunction> densityFunctionHolderGetter,
+        HolderGetter<NormalNoise.NoiseParameters> noiseParametersHolderGetter,
+        long seed
     ) {
-        super(structureSets, biomeSource, delegate);
+        super(biomeSource, noiseGeneratorSettings);
+        
+        this.delegate = delegate;
+        this.biomeHolderGetter = biomeHolderGetter;
+        this.densityFunctionHolderGetter = densityFunctionHolderGetter;
+        this.noiseParametersHolderGetter = noiseParametersHolderGetter;
         this.seed = seed;
-        this.biomeRegistry = biomeRegistry;
-        this.noiseRegistry = noiseRegistry;
+        
+        this.delegatedRandomState = RandomState.create(
+            (delegate.generatorSettings().value()),
+                noiseParametersHolderGetter,
+            seed
+        );
+    }
+    
+    public static NormalSkylandGenerator create(
+        HolderGetter<Biome> biomeHolderGetter,
+        HolderGetter<DensityFunction> densityFunctionHolderGetter,
+        HolderGetter<NormalNoise.NoiseParameters> noiseParametersHolderGetter,
+        HolderGetter<NoiseGeneratorSettings> noiseGeneratorSettingsHolderGetter,
+        HolderGetter<MultiNoiseBiomeSourceParameterList> biomeParamListLookup,
+        long seed
+    ) {
+        Holder.Reference<MultiNoiseBiomeSourceParameterList> overworldBiomeParamList =
+            biomeParamListLookup.getOrThrow(MultiNoiseBiomeSourceParameterLists.OVERWORLD);
+        
+        MultiNoiseBiomeSource overworldBiomeSource =
+            MultiNoiseBiomeSource.createFromPreset(overworldBiomeParamList);
+        
+        NoiseGeneratorSettings overworldNGS = noiseGeneratorSettingsHolderGetter
+            .getOrThrow(NoiseGeneratorSettings.OVERWORLD).value();
+        
+        NoiseGeneratorSettings intrinsicSkylandNGS = noiseGeneratorSettingsHolderGetter
+            .getOrThrow(NoiseGeneratorSettings.FLOATING_ISLANDS).value();
+
+//        NoiseGeneratorSettings endNGS = IENoiseGeneratorSettings.ip_end();
+        
+        NoiseGeneratorSettings usedSkylandNGS = new NoiseGeneratorSettings( // TODO @Nick1st - Replace this with a datapack noise function
+            intrinsicSkylandNGS.noiseSettings(),
+            intrinsicSkylandNGS.defaultBlock(),
+            intrinsicSkylandNGS.defaultFluid(),
+            skylandNoiseRouter(
+                overworldNGS.noiseRouter(),
+                IENoiseRouterData.ip_slideEndLike(IENoiseRouterData.ip_getFunction(
+                    densityFunctionHolderGetter, IENoiseRouterData.get_BASE_3D_NOISE_END()
+                ), 0, 128)
+            ),
+            intrinsicSkylandNGS.surfaceRule(),
+            intrinsicSkylandNGS.spawnTarget(),
+            0, // overwrite seaLevel
+            intrinsicSkylandNGS.disableMobGeneration(),
+            intrinsicSkylandNGS.aquifersEnabled(),
+            intrinsicSkylandNGS.oreVeinsEnabled(),
+            intrinsicSkylandNGS.useLegacyRandomSource()
+        );
+        
+        NoiseBasedChunkGenerator skylandGenerator = new NoiseBasedChunkGenerator(
+            overworldBiomeSource, Holder.direct(usedSkylandNGS)
+        );
+        
+        NormalSkylandGenerator result = new NormalSkylandGenerator(
+            overworldBiomeSource,
+            Holder.direct(overworldNGS),
+            skylandGenerator,
+            biomeHolderGetter,
+            densityFunctionHolderGetter,
+            noiseParametersHolderGetter,
+            seed
+        );
+        
+        // the features per step are computed from the overworld biome source by vanilla
+        
+        return result;
+    }
+    
+    private final NoiseBasedChunkGenerator delegate;
+    
+    @Override
+    protected @NotNull MapCodec<? extends ChunkGenerator> codec() {
+        return MAP_CODEC;
     }
     
     @Override
-    protected Codec<? extends ChunkGenerator> codec() {
-        return codec;
+    public CompletableFuture<ChunkAccess> fillFromNoise(
+        Blender blender, RandomState pRandomState,
+        StructureManager structureManager, ChunkAccess chunkAccess
+    ) {
+        ((IEChunkAccess_AlternateDim) chunkAccess).ip_setNoiseChunk(null);
+        
+        return delegate.fillFromNoise(
+            blender, delegatedRandomState, structureManager, chunkAccess
+        ).thenApply(c -> {
+            ((IEChunkAccess_AlternateDim) c).ip_setNoiseChunk(null);
+            return c;
+        });
     }
     
     @Override
-    public ChunkGenerator withSeed(long seed) {
-        return new NormalSkylandGenerator(
-            seed, structureSets, biomeSource.withSeed(seed),
-            delegate.withSeed(seed), biomeRegistry, noiseRegistry
+    public ChunkGeneratorStructureState createState(HolderLookup<StructureSet> structureSetLookup, RandomState randomState, long seed) {
+        // filter the mineshaft out
+        // cannot use HolderLookup.filterElements because it does not provide intId in predicate
+        HolderLookup<StructureSet> structureSetLookupDelegate = new HolderLookup<StructureSet>() {
+            @Override
+            public Stream<Holder.Reference<StructureSet>> listElements() {
+                return structureSetLookup.listElements().filter(
+                    holder -> !holder.key().identifier().getPath().equals("mineshafts")
+                );
+            }
+            
+            @Override
+            public Stream<HolderSet.Named<StructureSet>> listTags() {
+                return structureSetLookup.listTags();
+            }
+            
+            @Override
+            public Optional<Holder.Reference<StructureSet>> get(ResourceKey<StructureSet> resourceKey) {
+                return structureSetLookup.get(resourceKey);
+            }
+            
+            @Override
+            public Optional<HolderSet.Named<StructureSet>> get(TagKey<StructureSet> tagKey) {
+                return structureSetLookup.get(tagKey);
+            }
+        };
+        
+        return super.createState(structureSetLookupDelegate, randomState, seed);
+    }
+    
+    /**
+     * The floating island terrain with the overworld climate,
+     * so that the overworld biome source produces the overworld biomes.
+     * (Replaces the removed NoiseRouterData.noNewCaves)
+     */
+    private static NoiseRouter skylandNoiseRouter(NoiseRouter overworldRouter, DensityFunction slide) {
+        return new NoiseRouter(
+            DensityFunctions.zero(),
+            DensityFunctions.zero(),
+            DensityFunctions.zero(),
+            DensityFunctions.zero(),
+            overworldRouter.temperature(),
+            overworldRouter.vegetation(),
+            overworldRouter.continents(),
+            overworldRouter.erosion(),
+            overworldRouter.depth(),
+            overworldRouter.ridges(),
+            DensityFunctions.zero(),
+            IENoiseRouterData.ip_postProcess(slide),
+            DensityFunctions.zero(),
+            DensityFunctions.zero(),
+            DensityFunctions.zero()
         );
     }
 }

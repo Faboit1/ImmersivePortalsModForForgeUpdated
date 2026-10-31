@@ -1,99 +1,112 @@
 package qouteall.imm_ptl.peripheral.dim_stack;
 
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonSyntaxException;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.JsonOps;
+import qouteall.q_misc_util.my_util.IPPermissions;
+
+import com.google.gson.JsonObject;
+import com.mojang.logging.LogUtils;
+import de.nick1st.imm_ptl.events.DimensionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Registry;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.fml.loading.FMLPaths;
-import org.apache.logging.log4j.LogManager;
+import qouteall.q_misc_util.event.IPEventBus;
+import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import qouteall.imm_ptl.core.IPGlobal;
+import qouteall.imm_ptl.core.platform_specific.IPConfig;
+import qouteall.imm_ptl.core.platform_specific.O_O;
 import qouteall.imm_ptl.core.portal.global_portals.GlobalPortalStorage;
 import qouteall.imm_ptl.core.portal.global_portals.VerticalConnectingPortal;
 import qouteall.q_misc_util.Helper;
-import qouteall.q_misc_util.MiscHelper;
 import qouteall.q_misc_util.api.McRemoteProcedureCall;
-import qouteall.q_misc_util.dimension.DimId;
+import qouteall.q_misc_util.api.McRemoteProcedureCallClient;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 public class DimStackManagement {
-    // This is for client dimension stack initialization
+    private static final Logger LOGGER = LogUtils.getLogger();
+    
     public static DimStackInfo dimStackToApply = null;
     public static Map<ResourceKey<Level>, BlockState> bedrockReplacementMap = new HashMap<>();
     
     public static void init() {
-    
+        if (!isDimStackEnabled()) {
+            return;
+        }
+        IPEventBus.EVENT_BUS.addListener(DimensionEvents.ServerDimensionsLoadEvent.class, event -> {
+            if (dimStackToApply != null) {
+                IPEventBus.EVENT_BUS.post(new DimensionStackAPI.DimensionStackPreUpdateEvent(event.server, dimStackToApply));
+            }
+        });
+    }
+
+    private static boolean isDimStackEnabled() {
+        return true;
     }
     
     // at that time, only overworld has been created, only overworld data can be read
     // it's going to generate overworld spawn chunks
     // make sure the bedrock replacement map for overworld is initialized in time
     public static void onServerEarlyInit(MinecraftServer server) {
-        Map<ResourceKey<Level>, BlockState> newMap = new HashMap<>();
-
-        if (dimStackToApply == null && Paths.get(FMLPaths.CONFIGDIR.get().toString(), "imm_ptl_dim_stack.json").toFile().exists()) {
-            try {
-                String dimStackConfig = Files.readString(Paths.get(FMLPaths.CONFIGDIR.get().toString(), "imm_ptl_dim_stack.json"));
-                JsonElement JSON = new GsonBuilder().create().fromJson(dimStackConfig, JsonElement.class);
-                DataResult<CompoundTag> result = CompoundTag.CODEC.parse(JsonOps.INSTANCE, JSON);
-                DimStackInfo info = DimStackInfo.fromNbt(result.result().get());
-
-                dimStackToApply = info;
-
-                Helper.log("Generating dimension stack world");
-            } catch (JsonSyntaxException | IOException e) {
-                LogManager.getLogger().error("Failed to read ImmersivePortals Dimension Stack Config: ", e);
-            }
+        if (!isDimStackEnabled()) {
+            return;
         }
+
+        updateDimStackFromPresetInDedicatedServer(server);
+        
+        Map<ResourceKey<Level>, BlockState> bedrockReplacementMap = new HashMap<>();
         
         if (dimStackToApply != null) {
             for (DimStackEntry entry : dimStackToApply.entries) {
-                newMap.put(entry.dimension, DimStackInfo.parseBlockString(entry.bedrockReplacementStr));
+                bedrockReplacementMap.put(entry.getDimension(), DimStackInfo.parseBlockString(entry.bedrockReplacementStr));
             }
         }
         
-        bedrockReplacementMap = newMap;
+        DimStackManagement.bedrockReplacementMap = bedrockReplacementMap;
     }
     
     public static void onServerCreatedWorlds(MinecraftServer server) {
+        if (!isDimStackEnabled()) {
+            return;
+        }
+
         if (dimStackToApply != null) {
-            dimStackToApply.apply();
+            dimStackToApply.apply(server);
             dimStackToApply = null;
         }
         else {
-            
             updateBedrockReplacementFromStorage(server);
+        }
+    }
+    
+    private static void updateDimStackFromPresetInDedicatedServer(MinecraftServer server) {
+        if (O_O.isDedicatedServer()) {
+            DimStackInfo dimStackPreset = getDimStackPreset();
             
-            GameRules gameRules = server.getGameRules();
-            GameRules.BooleanValue o = gameRules.getRule(DimStackGameRule.dimensionStackKey);
-            if (o.get()) {
-                // legacy dimension stack
-                
-                o.set(false, server);
-                
-                upgradeLegacyDimensionStack(server);
+            if (dimStackPreset != null) {
+                if (!hasDimStackPortal(server)) {
+                    LOGGER.info("Applying dimension stack preset in dedicated server");
+                    dimStackToApply = dimStackPreset;
+                }
+                else {
+                    LOGGER.info("There are already dim stack portals, so the preset is not applied");
+                }
+            }
+            else {
+                LOGGER.info("The server has no dimension stack preset.");
             }
         }
     }
@@ -104,31 +117,23 @@ public class DimStackManagement {
         for (ServerLevel world : server.getAllLevels()) {
             BlockState replacement = GlobalPortalStorage.get(world).bedrockReplacement;
             newMap.put(world.dimension(), replacement);
-            Helper.log(String.format(
-                "Bedrock Replacement %s %s",
-                world.dimension().location(),
-                replacement != null ? Registry.BLOCK.getKey(replacement.getBlock()) : "null"
-            ));
+            LOGGER.info(
+                "Bedrock Replacement {} {}",
+                world.dimension().identifier(),
+                replacement != null ?
+                    BuiltInRegistries.BLOCK.getKey(replacement.getBlock()) : "null"
+            );
         }
         bedrockReplacementMap = newMap;
     }
-    
-    public static void upgradeLegacyDimensionStack(MinecraftServer server) {
-        
-        for (ServerLevel world : server.getAllLevels()) {
-            GlobalPortalStorage gps = GlobalPortalStorage.get(world);
-            gps.bedrockReplacement = Blocks.OBSIDIAN.defaultBlockState();
-            gps.onDataChanged();
-        }
-        
-        updateBedrockReplacementFromStorage(server);
-        
-        Helper.log("Legacy Dimension Stack Upgraded");
-    }
-    
+
     public static void replaceBedrock(ServerLevel world, ChunkAccess chunk) {
+        if (!isDimStackEnabled()) {
+            return;
+        }
+
         if (bedrockReplacementMap == null) {
-            Helper.err("Dimension Stack Bedrock Replacement Abnormal");
+            LOGGER.error("Dimension Stack Bedrock Replacement Abnormal");
             return;
         }
         
@@ -138,14 +143,14 @@ public class DimStackManagement {
             BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
             for (int x = 0; x < 16; x++) {
                 for (int z = 0; z < 16; z++) {
-                    for (int y = chunk.getMinBuildHeight(); y < chunk.getMaxBuildHeight(); y++) {
+                    for (int y = chunk.getMinY(); y < chunk.getMaxY(); y++) {
                         mutable.set(x, y, z);
                         BlockState blockState = chunk.getBlockState(mutable);
                         if (blockState.getBlock() == Blocks.BEDROCK) {
                             chunk.setBlockState(
                                 mutable,
                                 replacement,
-                                false
+                                0
                             );
                         }
                     }
@@ -154,70 +159,115 @@ public class DimStackManagement {
         }
     }
     
+    private static Collection<ResourceKey<Level>> collectDimStackCandidateWhenServerRunning(
+        MinecraftServer server
+    ) {
+        LinkedHashSet<ResourceKey<Level>> result = new LinkedHashSet<>(server.levelKeys());
+        
+        Collection<ResourceKey<Level>> extra =
+            IPEventBus.EVENT_BUS.post(new DimensionStackAPI.DimensionStackCandidateCollectionEvent(server.registryAccess(),
+                    server.getWorldGenSettings().options())).getDimensionsResult();
+        
+        result.addAll(extra);
+        
+        return result;
+    }
+    
+    public static void onDimensionStackCommandExecute(
+        ServerPlayer player
+    ) {
+        List<String> dimIdList = collectDimStackCandidateWhenServerRunning(player.level().getServer())
+            .stream().map(k -> k.identifier().toString()).toList();
+        
+        McRemoteProcedureCall.tellClientToInvoke(
+            player,
+            "qouteall.imm_ptl.peripheral.dim_stack.DimStackManagement.RemoteCallables.clientOpenScreen",
+            dimIdList
+        );
+    }
+    
     public static class RemoteCallables {
-        @OnlyIn(Dist.CLIENT)
+        //@OnlyIn(Dist.CLIENT)
         public static void clientOpenScreen(List<String> dimensions) {
-            List<ResourceKey<Level>> dimensionList =
-                dimensions.stream().map(DimId::idToKey).collect(Collectors.toList());
-            
-            Minecraft.getInstance().setScreen(new DimStackScreen(
-                null,
-                (screen) -> dimensionList,
-                dimStackInfo -> {
-                    if (dimStackInfo != null) {
-                        McRemoteProcedureCall.tellServerToInvoke(
-                            "qouteall.imm_ptl.peripheral.dim_stack.DimStackManagement.RemoteCallables.serverSetupDimStack",
-                            dimStackInfo.toNbt()
-                        );
-                    }
-                    else {
-                        McRemoteProcedureCall.tellServerToInvoke(
-                            "qouteall.imm_ptl.peripheral.dim_stack.DimStackManagement.RemoteCallables.serverRemoveDimStack"
-                        );
-                    }
-                })
-            );
+            // the dimension stack GUI has not been ported to the Minecraft 26 GUI system yet
+            Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(Component.literal(
+                "The dimension stack screen is not available in this version. " +
+                    "Configure the dimension stack with \"dimStackPreset\" in config/immersive_portals.json. " +
+                    "Available dimensions: " + String.join(", ", dimensions)
+            ));
         }
         
         public static void serverSetupDimStack(
-            ServerPlayer player, CompoundTag infoTag
+            ServerPlayer player, DimStackInfo dimStackInfo
         ) {
-            if (!player.hasPermissions(2)) {
-                Helper.err("one player without permission tries to change dimension stack");
+            if (!player.permissions().hasPermission(IPPermissions.level(2))) {
+                player.sendSystemMessage(Component.literal(
+                    "You don't have permission to change dimension stack"
+                ));
+                return;
+            }
+
+            if (!isDimStackEnabled()) {
+                player.sendSystemMessage(Component.literal(
+                    "Dimension stack feature is not enabled"
+                ));
                 return;
             }
             
-            DimStackInfo dimStackInfo = DimStackInfo.fromNbt(infoTag);
+            MinecraftServer server = player.level().getServer();
             
-            clearDimStackPortals();
+            updateDimStack(server, dimStackInfo);
             
-            dimStackInfo.apply();
-            
-            player.displayClientMessage(
-                new TranslatableComponent("imm_ptl.dim_stack_established"),
-                false
-            );
+            player.sendSystemMessage(Component.translatable("imm_ptl.dim_stack_established"));
         }
         
         public static void serverRemoveDimStack(
             ServerPlayer player
         ) {
-            if (!player.hasPermissions(2)) {
+            if (!player.permissions().hasPermission(IPPermissions.level(2))) {
                 Helper.err("one player without permission tries to change dimension stack");
                 return;
             }
             
-            clearDimStackPortals();
+            MinecraftServer server = player.level().getServer();
             
-            player.displayClientMessage(
-                new TranslatableComponent("imm_ptl.dim_stack_removed"),
-                false
-            );
+            clearDimStackPortals(server);
+            
+            player.sendSystemMessage(Component.translatable("imm_ptl.dim_stack_removed"));
+            
+            // on dedicated server, the preset should be consistent with the current dimension stack
+            // because it will try to apply dimension stack preset when initializing the server
+            if (O_O.isDedicatedServer()) {
+                setDimStackPreset(null);
+            }
         }
     }
     
-    private static void clearDimStackPortals() {
-        MinecraftServer server = MiscHelper.getServer();
+    private static void updateDimStack(MinecraftServer server, DimStackInfo dimStackInfo) {
+        IPEventBus.EVENT_BUS.post(new DimensionStackAPI.DimensionStackPreUpdateEvent(server, dimStackInfo));
+        
+        clearDimStackPortals(server);
+        
+        dimStackInfo.apply(server);
+        
+        // on dedicated server, the preset should be consistent with the current dimension stack
+        // because it will try to apply dimension stack preset when initializing the server
+        if (O_O.isDedicatedServer()) {
+            setDimStackPreset(dimStackInfo);
+        }
+    }
+    
+    public static boolean hasDimStackPortal(MinecraftServer server) {
+        for (ServerLevel world : server.getAllLevels()) {
+            GlobalPortalStorage gps = GlobalPortalStorage.get(world);
+            if (Helper.indexOf(gps.data, p -> p instanceof VerticalConnectingPortal) != -1) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    private static void clearDimStackPortals(MinecraftServer server) {
         for (ServerLevel world : server.getAllLevels()) {
             GlobalPortalStorage gps = GlobalPortalStorage.get(world);
             gps.data.removeIf(p -> p instanceof VerticalConnectingPortal);
@@ -226,5 +276,32 @@ public class DimStackManagement {
         }
         
         updateBedrockReplacementFromStorage(server);
+    }
+    
+    @Nullable
+    public static DimStackInfo getDimStackPreset() {
+        JsonObject json = IPConfig.getConfig().dimStackPreset;
+        if (json == null) {
+            return null;
+        }
+        
+        try {
+            DimStackInfo dimStackInfo = IPGlobal.gson.fromJson(json, DimStackInfo.class);
+            return dimStackInfo;
+        }
+        catch (Exception e) {
+            LOGGER.error("Cannot parse dimension stack preset JSON {}", json, e);
+            return null;
+        }
+    }
+    
+    public static void setDimStackPreset(@Nullable DimStackInfo preset) {
+        JsonObject json = null;
+        if (preset != null) {
+            json = IPGlobal.gson.toJsonTree(preset).getAsJsonObject();
+        }
+        IPConfig config = IPConfig.getConfig();
+        config.dimStackPreset = json;
+        config.saveConfigFile();
     }
 }
