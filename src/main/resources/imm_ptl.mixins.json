@@ -59,8 +59,6 @@
     "common.miscellaneous.MixinEnderDragon",
     "common.miscellaneous.MixinFishingHook",
     "common.miscellaneous.MixinLeashable",
-    "common.networking.MixinClientboundCustomPayloadPacket",
-    "common.networking.MixinServerboundCustomPayloadPacket",
     "common.other_sync.IEServerConfigurationPacketListenerImpl",
     "common.other_sync.MixinMapItemSavedData",
     "common.other_sync.MixinPlayerList",

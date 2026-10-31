@@ -1,8 +1,10 @@
 package qouteall.imm_ptl.core;
 
+import net.neoforged.neoforge.common.NeoForge;
+
 import qouteall.imm_ptl.core.render.PortalViewRendering;
 
-import net.minecraftforge.client.event.RegisterClientCommandsEvent;
+import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 
 import de.nick1st.imm_ptl.events.ClientCleanupEvent;
 import net.minecraft.ChatFormatting;
@@ -47,7 +49,7 @@ public class IPModMainClient {
         
         GcMonitor.initClient();
 
-        RegisterClientCommandsEvent.BUS.addListener(event -> {
+        NeoForge.EVENT_BUS.addListener(RegisterClientCommandsEvent.class, event -> {
             ClientDebugCommand.register(event.getDispatcher());
         });
         

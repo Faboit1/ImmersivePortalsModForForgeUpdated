@@ -1,6 +1,8 @@
 package qouteall.imm_ptl.core.chunk_loading;
 
-import net.minecraftforge.event.TickEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+
 
 import net.minecraft.server.MinecraftServer;
 import qouteall.imm_ptl.core.IPGlobal;
@@ -16,8 +18,8 @@ public class ServerPerformanceMonitor {
     private static final LimitedLogger limitedLogger = new LimitedLogger(50);
 
     public static void init() {
-        TickEvent.ServerTickEvent.Post.BUS.addListener(event -> {
-            ServerPerformanceMonitor.tick(event.server());
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, event -> {
+            ServerPerformanceMonitor.tick(event.getServer());
 
         });
     }

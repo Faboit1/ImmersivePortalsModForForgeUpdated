@@ -1,4 +1,4 @@
-# Immersive Portals Mod for Forge
+# Immersive Portals Mod for NeoForge
 
 It's a Minecraft mod that provides see-through portals and seamless teleportation. It also can create "Non-Euclidean" (Uneuclidean) space effect.
 
@@ -20,9 +20,9 @@ This mod also provides some API for:
 
 [API description](https://qouteall.fun/immptl/wiki/API-for-Other-Mods.html).
 
-## Minecraft 26.2 (Forge)
+## Minecraft 26.2 (NeoForge)
 
-This branch targets Minecraft 26.2 with Forge 65.1.5 or newer, and needs Java 25.
+This branch targets Minecraft 26.2 with NeoForge 26.2.0.93 or newer, and needs Java 25.
 
 Build the jar with `./gradlew build` (it ends up in `build/libs`).
 Run the game with `./gradlew runClient` or `./gradlew runServer`.

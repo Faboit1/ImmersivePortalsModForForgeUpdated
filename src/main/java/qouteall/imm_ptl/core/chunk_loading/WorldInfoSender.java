@@ -1,6 +1,8 @@
 package qouteall.imm_ptl.core.chunk_loading;
 
-import net.minecraftforge.event.TickEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+
 
 import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
@@ -17,20 +19,20 @@ import java.util.Set;
 
 public class WorldInfoSender {
     public static void init() {
-        TickEvent.ServerTickEvent.Post.BUS.addListener(event -> {
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, event -> {
             Profiler.get().push("portal_send_world_info");
             if (McHelper.getServerGameTime() % 100 == 42) {
-                for (ServerPlayer player : event.server().getPlayerList().getPlayers()) {
+                for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
                     Set<ResourceKey<Level>> visibleDimensions = ImmPtlChunkTracking.getVisibleDimensions(player);
 
                     // sync overworld status when the player is not in overworld
                     if (player.level().dimension() != Level.OVERWORLD) {
-                        ServerLevel overworld = event.server().getLevel(Level.OVERWORLD);
+                        ServerLevel overworld = event.getServer().getLevel(Level.OVERWORLD);
                         Validate.notNull(overworld, "missing overworld");
                         sendWorldInfo(player, overworld);
                     }
 
-                    event.server().getAllLevels().forEach(thisWorld -> {
+                    event.getServer().getAllLevels().forEach(thisWorld -> {
                         if (isNonOverworldSurfaceDimension(thisWorld)) {
                             if (visibleDimensions.contains(thisWorld.dimension())) {
                                 sendWorldInfo(player, thisWorld);

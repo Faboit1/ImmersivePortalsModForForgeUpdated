@@ -1,20 +1,18 @@
 package qouteall.imm_ptl.core.network;
 
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.common.ServerCommonPacketListener;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import com.mojang.logging.LogUtils;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.HandlerThread;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
-import qouteall.imm_ptl.core.mixin.common.networking.MixinClientboundCustomPayloadPacket;
-import qouteall.imm_ptl.core.mixin.common.networking.MixinServerboundCustomPayloadPacket;
 import qouteall.q_misc_util.ImplRemoteProcedureCall;
 import qouteall.q_misc_util.MiscNetworking;
 
@@ -22,16 +20,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * All Immersive Portals payloads.
+ * All Immersive Portals payloads. They are registered as NeoForge payload channels.
  * <p>
- * The payload types are added directly into the vanilla custom payload codecs
- * ({@link MixinClientboundCustomPayloadPacket}, {@link MixinServerboundCustomPayloadPacket}),
- * the same way Fabric API does it. Forge's payload channels would cap clientbound payloads at 1 MiB,
- * which the redirected chunk packets can exceed, and they run handlers on the networking thread.
- * Here the handlers are queued into the vanilla packet processor so that they keep their order
- * relative to the vanilla packets.
+ * The handlers run on the main thread through NeoForge, which queues them into the vanilla packet processor,
+ * so they keep their order relative to the vanilla packets. NeoForge also splits the payloads larger than
+ * the vanilla limit (the redirected chunk packets can be).
  * <p>
- * Mod presence and version checking is done by Forge's channel negotiation, see {@link ImmPtlNetworkConfig}.
+ * The channels are optional, so a client with ImmPtl can join a server without it.
+ * See {@link ImmPtlNetworkConfig} for the checks of the remote side.
  */
 public final class IPPayloadRegistry {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -116,93 +112,28 @@ public final class IPPayloadRegistry {
         return S2C.get(id);
     }
 
-    /**
-     * Used by the mixins into the vanilla custom payload codecs.
-     */
-    /**
-     * Makes the vanilla gameplay payload codec resolve ImmPtl payload types.
-     * The vanilla codec builds its type map in the static initializer, which can run while this class
-     * is still being initialized (via PacketRedirection -> GameProtocols), so the types are looked up
-     * lazily through the fallback instead.
-     */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static <B extends FriendlyByteBuf> CustomPacketPayload.FallbackProvider<B> wrapClientboundFallback(
-        CustomPacketPayload.FallbackProvider<B> fallback
-    ) {
-        return id -> {
-            S2CEntry<?> entry = S2C.get(id);
-            if (entry != null) {
-                return withDecodeErrorLogging(id, (StreamCodec) entry.codec());
-            }
-            return fallback.create(id);
-        };
+    public static void register(RegisterPayloadHandlersEvent event) {
+        PayloadRegistrar registrar = event.registrar(ImmPtlNetworkConfig.getNetworkVersion()).optional();
+        PayloadRegistrar networkThreadRegistrar = registrar.executesOn(HandlerThread.NETWORK);
+        
+        for (S2CEntry entry : S2C.values()) {
+            ClientHandler handler = entry.handler();
+            (entry.handleOnNetworkThread() ? networkThreadRegistrar : registrar).playToClient(
+                entry.type(), entry.codec(),
+                (payload, context) -> handler.handle(payload, (ClientGamePacketListener) context.listener())
+            );
+        }
+        
+        for (C2SEntry entry : C2S.values()) {
+            ServerHandler handler = entry.handler();
+            registrar.playToServer(
+                entry.type(), entry.codec(),
+                (payload, context) -> handler.handle(payload, (ServerPlayer) context.player())
+            );
+        }
     }
     
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public static <B extends FriendlyByteBuf> CustomPacketPayload.FallbackProvider<B> wrapServerboundFallback(
-        CustomPacketPayload.FallbackProvider<B> fallback
-    ) {
-        return id -> {
-            C2SEntry<?> entry = C2S.get(id);
-            if (entry != null) {
-                return withDecodeErrorLogging(id, (StreamCodec) entry.codec());
-            }
-            return fallback.create(id);
-        };
-    }
-    
-    // vanilla only reports "Failed to decode packet" when disconnecting, log the cause
-    private static <B, T> StreamCodec<B, T> withDecodeErrorLogging(Identifier id, StreamCodec<B, T> codec) {
-        return new StreamCodec<>() {
-            @Override
-            public T decode(B input) {
-                try {
-                    return codec.decode(input);
-                }
-                catch (RuntimeException e) {
-                    LOGGER.error("[ImmPtl] Failed to decode payload {}", id, e);
-                    throw e;
-                }
-            }
-            
-            @Override
-            public void encode(B output, T value) {
-                codec.encode(output, value);
-            }
-        };
-    }
-    
-    /**
-     * Called when a serverbound custom payload packet is handled (initially on the networking thread).
-     * @return whether the payload belongs to ImmPtl
-     */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public static boolean handleServerbound(
-        Packet<ServerCommonPacketListener> packet,
-        CustomPacketPayload payload,
-        ServerCommonPacketListener listener
-    ) {
-        C2SEntry entry = C2S.get(payload.type().id());
-        if (entry == null) {
-            return false;
-        }
-
-        if (!(listener instanceof ServerGamePacketListenerImpl gameListener)) {
-            // ImmPtl payloads are only valid in the play phase
-            return true;
-        }
-
-        var packetProcessor = gameListener.player.level().getServer().packetProcessor();
-        if (!packetProcessor.isSameThread()) {
-            // re-handled on the server thread in the same order as the vanilla packets
-            packetProcessor.scheduleIfPossible(listener, packet);
-            return true;
-        }
-
-        entry.handler().handle(payload, gameListener.player);
-        return true;
-    }
-
     /**
      * Turn a payload into a vanilla packet that can be sent to a client.
      */
@@ -212,9 +143,5 @@ public final class IPPayloadRegistry {
         );
     }
 
-    /**
-     * Required for the static initializer to run before the vanilla codecs are built.
-     */
-    public static void init() {}
 
 }

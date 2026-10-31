@@ -1,6 +1,8 @@
 package qouteall.imm_ptl.core.chunk_loading;
 
-import net.minecraftforge.event.TickEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+
 
 import com.mojang.logging.LogUtils;
 import de.nick1st.imm_ptl.events.DimensionEvents;
@@ -40,8 +42,8 @@ public class ImmPtlChunkTracking {
     public static final int defaultDelayUnloadGenerations = 4;
 
     public static void init() {
-        TickEvent.ServerTickEvent.Post.BUS.addListener(event -> {
-            ImmPtlChunkTracking.tick(event.server());
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, event -> {
+            ImmPtlChunkTracking.tick(event.getServer());
         });
 
         IPEventBus.EVENT_BUS.addListener(ServerCleanupEvent.class, event -> {

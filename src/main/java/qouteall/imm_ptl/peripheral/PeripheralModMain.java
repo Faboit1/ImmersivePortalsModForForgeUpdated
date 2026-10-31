@@ -1,5 +1,6 @@
 package qouteall.imm_ptl.peripheral;
 
+import net.minecraft.resources.ResourceKey;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -11,9 +12,9 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
-import net.minecraftforge.eventbus.api.bus.BusGroup;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.DeferredHolder;
 import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.peripheral.alternate_dimension.ChaosBiomeSource;
 import qouteall.imm_ptl.peripheral.alternate_dimension.ErrorTerrainGenerator;
@@ -78,11 +79,11 @@ public class PeripheralModMain {
     public static final DeferredRegister<Block> BLOCKS =
         DeferredRegister.create(Registries.BLOCK, "immersive_portals");
     
-    public static final RegistryObject<Block> PORTAL_HELPER = BLOCKS.register(
+    public static final DeferredHolder<Block, Block> PORTAL_HELPER = BLOCKS.register(
         "portal_helper",
         () -> new Block(
             BlockBehaviour.Properties.of()
-                .setId(BLOCKS.key("portal_helper"))
+                .setId(ResourceKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("immersive_portals", "portal_helper")))
                 .noOcclusion()
                 .isRedstoneConductor((a, b, c) -> false)
         )
@@ -91,22 +92,22 @@ public class PeripheralModMain {
     public static final DeferredRegister<Item> ITEMS =
         DeferredRegister.create(Registries.ITEM, "immersive_portals");
     
-    public static final RegistryObject<Item> PORTAL_HELPER_ITEM = ITEMS.register(
+    public static final DeferredHolder<Item, Item> PORTAL_HELPER_ITEM = ITEMS.register(
         "portal_helper",
         () -> new BlockItem(
             PORTAL_HELPER.get(),
-            new Item.Properties().setId(ITEMS.key("portal_helper")).useBlockDescriptionPrefix()
+            new Item.Properties().setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath("immersive_portals", "portal_helper"))).useBlockDescriptionPrefix()
         )
     );
     
-    public static final RegistryObject<CommandStickItem> COMMAND_STICK = ITEMS.register(
+    public static final DeferredHolder<Item, CommandStickItem> COMMAND_STICK = ITEMS.register(
         "command_stick",
-        () -> new CommandStickItem(new Item.Properties().setId(ITEMS.key("command_stick")))
+        () -> new CommandStickItem(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath("immersive_portals", "command_stick"))))
     );
     
-    public static final RegistryObject<PortalWandItem> PORTAL_WAND = ITEMS.register(
+    public static final DeferredHolder<Item, PortalWandItem> PORTAL_WAND = ITEMS.register(
         "portal_wand",
-        () -> new PortalWandItem(new Item.Properties().setId(ITEMS.key("portal_wand")))
+        () -> new PortalWandItem(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath("immersive_portals", "portal_wand"))))
     );
     
     public static final DeferredRegister<DataComponentType<?>> DATA_COMPONENTS =
@@ -115,11 +116,11 @@ public class PeripheralModMain {
     public static final DeferredRegister<CreativeModeTab> CREATIVE_TABS =
         DeferredRegister.create(Registries.CREATIVE_MODE_TAB, "immersive_portals");
     
-    public static final RegistryObject<CreativeModeTab> TAB_HOLDER = CREATIVE_TABS.register(
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_HOLDER = CREATIVE_TABS.register(
         "general", () -> PeripheralModMain.TAB
     );
     
-    public static void registerDeferred(BusGroup modBus) {
+    public static void registerDeferred(IEventBus modBus) {
         BLOCKS.register(modBus);
         ITEMS.register(modBus);
         DATA_COMPONENTS.register(modBus);

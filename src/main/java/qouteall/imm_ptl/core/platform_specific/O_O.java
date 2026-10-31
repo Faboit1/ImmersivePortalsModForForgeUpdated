@@ -1,5 +1,7 @@
 package qouteall.imm_ptl.core.platform_specific;
 
+import net.neoforged.neoforge.common.NeoForge;
+
 import net.minecraft.SharedConstants;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.Identifier;
@@ -10,12 +12,12 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.ModContainer;
-import net.minecraftforge.fml.ModList;
-import net.minecraftforge.fml.loading.FMLEnvironment;
-import net.minecraftforge.fml.loading.FMLPaths;
-import net.minecraftforge.event.level.ChunkEvent;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.fml.loading.FMLPaths;
+import net.neoforged.neoforge.event.level.ChunkEvent;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.jetbrains.annotations.NotNull;
@@ -59,21 +61,21 @@ public class O_O {
     }
     
     public static void postClientChunkLoadEvent(LevelChunk chunk) {
-        ChunkEvent.Load.BUS.post(new ChunkEvent.Load(chunk, false));
+        NeoForge.EVENT_BUS.post(new ChunkEvent.Load(chunk, false));
 //        ClientChunkEvents.CHUNK_LOAD.invoker().onChunkLoad(
 //            ((ClientLevel) chunk.getLevel()), chunk
 //        );
     }
     
     public static void postClientChunkUnloadEvent(LevelChunk chunk) {
-        ChunkEvent.Unload.BUS.post(new ChunkEvent.Unload(chunk));
+        NeoForge.EVENT_BUS.post(new ChunkEvent.Unload(chunk));
 //        ClientChunkEvents.CHUNK_UNLOAD.invoker().onChunkUnload(
 //            ((ClientLevel) chunk.getLevel()), chunk
 //        );
     }
     
     public static boolean isDedicatedServer() {
-        return FMLEnvironment.dist == Dist.DEDICATED_SERVER;
+        return FMLEnvironment.getDist() == Dist.DEDICATED_SERVER;
     }
     
     public static void postPortalSpawnEventForge(PortalGenInfo info) {
@@ -87,18 +89,18 @@ public class O_O {
 //    }
     
     public static boolean getIsPehkuiPresent() {
-        return ModList.isLoaded("pehkui");
+        return ModList.get().isLoaded("pehkui");
     }
     
     @Nullable
     public static String getImmPtlModInfoUrl() {
-        // upstream does not publish version info for this Forge port,
+        // upstream does not publish version info for this port,
         // fetching it would only produce 404 errors
         return null;
     }
     
     public static boolean isModLoadedWithinVersion(String modId, @Nullable String startVersion, @Nullable String endVersion) {
-        Optional<? extends ModContainer> modContainer = ModList.getModContainerById(modId);
+        Optional<? extends ModContainer> modContainer = ModList.get().getModContainerById(modId);
         if (modContainer.isPresent()) {
             ArtifactVersion version = modContainer.get().getModInfo().getVersion();
             
@@ -130,7 +132,7 @@ public class O_O {
     }
     
     private static Optional<ArtifactVersion> getOwnVersion() {
-        return ModList.getModContainerById(IPModEntry.MODID)
+        return ModList.get().getModContainerById(IPModEntry.MODID)
             .map(c -> c.getModInfo().getVersion());
     }
     
@@ -206,7 +208,7 @@ public class O_O {
     
     @Nullable
     public static String getModName(String modid) {
-        return ModList.getModContainerById(modid)
+        return ModList.get().getModContainerById(modid)
             .map(c -> c.getModInfo().getDisplayName())
             .orElse(null);
     }
@@ -218,15 +220,15 @@ public class O_O {
     }
     
     public static List<String> getLoadedModIds() {
-        return ModList.getMods().stream().map(net.minecraftforge.forgespi.language.IModInfo::getModId).sorted().toList();
+        return ModList.get().getMods().stream().map(net.neoforged.neoforgespi.language.IModInfo::getModId).sorted().toList();
     }
 
     public static boolean allowTeleportingEntity(Entity entity, Portal portal) {
-        // ForgeHooks.onTravelToDimension() on Forge
+        // CommonHooks.onTravelToDimension() on NeoForge
         return true;
     }
     
     public static boolean isDevEnv() {
-        return !FMLEnvironment.production;
+        return !FMLEnvironment.isProduction();
     }
 }

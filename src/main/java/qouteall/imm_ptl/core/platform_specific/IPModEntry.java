@@ -1,14 +1,14 @@
 package qouteall.imm_ptl.core.platform_specific;
 
 import net.minecraft.core.registries.Registries;
-import net.minecraftforge.client.event.EntityRenderersEvent;
-import net.minecraftforge.eventbus.api.bus.BusGroup;
-import net.minecraftforge.fml.ModList;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLDedicatedServerSetupEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.fml.loading.FMLEnvironment;
-import net.minecraftforge.registries.RegisterEvent;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModList;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.event.lifecycle.FMLDedicatedServerSetupEvent;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import qouteall.imm_ptl.core.IPModMain;
 import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.chunk_loading.ImmPtlChunkTickets;
@@ -21,7 +21,7 @@ import qouteall.q_misc_util.Helper;
 import qouteall.q_misc_util.MiscUtilModEntry;
 
 /**
- * The Forge entry point. Immersive Portals core, the peripheral part and q_misc_util
+ * The NeoForge entry point. Immersive Portals core, the peripheral part and q_misc_util
  * are all initialized from here (they are three separate mods on Fabric).
  */
 @Mod(IPModEntry.MODID)
@@ -29,13 +29,12 @@ public class IPModEntry {
     
     public static final String MODID = "immersive_portals";
     
-    public IPModEntry(FMLJavaModLoadingContext context) {
-        BusGroup modBus = context.getModBusGroup();
-        boolean isClient = FMLEnvironment.dist.isClient();
+    public IPModEntry(IEventBus modBus, ModContainer modContainer) {
+        boolean isClient = FMLEnvironment.getDist().isClient();
         
         MiscUtilModEntry.onInitialize();
         
-        RegisterEvent.getBus(modBus).addListener(registerEvent -> {
+        modBus.addListener(RegisterEvent.class, registerEvent -> {
             registerEvent.register(Registries.ENTITY_TYPE, IPModMain::registerEntityTypes);
             registerEvent.register(Registries.TICKET_TYPE, helper -> helper.register(
                 McHelper.newIdentifier("immersive_portals", "portal_loading"),
@@ -49,23 +48,28 @@ public class IPModEntry {
         TimingFunctionArgumentType.init(modBus);
         AxisArgumentType.init(modBus);
         
-        FMLDedicatedServerSetupEvent.getBus(modBus).addListener(
+        modBus.addListener(
+            FMLDedicatedServerSetupEvent.class,
             event -> new IPModEntryDedicatedServer().onInitializeServer()
         );
         
+        PeripheralModEntry.init(modBus);
+        
         if (isClient) {
-            EntityRenderersEvent.RegisterRenderers.BUS.addListener(IPModEntryClient::initPortalRenderers);
-            new IPModEntryClient().onInitializeClient(modBus);
+            IPModEntryClient.registerModBusListeners(modBus);
+            // NeoForge constructs the mods before the Minecraft instance exists
+            modBus.addListener(
+                FMLClientSetupEvent.class,
+                event -> event.enqueueWork(() -> new IPModEntryClient().onInitializeClient())
+            );
         }
         
-        PeripheralModEntry.init(modBus, isClient);
-        
-        if (ModList.isLoaded("dimthread")) {
+        if (ModList.get().isLoaded("dimthread")) {
             O_O.isDimensionalThreadingPresent = true;
             Helper.log("Dimensional Threading is present");
         }
         
-        if (ModList.isLoaded("gravity_changer_q")) {
+        if (ModList.get().isLoaded("gravity_changer_q")) {
             GravityChangerInterface.invoker = new GravityChangerInterface.OnGravityChangerPresent();
             Helper.log("Gravity API is present");
         }

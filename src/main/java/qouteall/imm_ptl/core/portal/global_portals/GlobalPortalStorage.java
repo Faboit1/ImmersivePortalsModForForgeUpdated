@@ -1,6 +1,8 @@
 package qouteall.imm_ptl.core.portal.global_portals;
 
-import net.minecraftforge.event.TickEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.HolderLookup;
@@ -63,15 +65,15 @@ public class GlobalPortalStorage extends SavedData {
     public BlockState bedrockReplacement;
     
     public static void init() {
-        TickEvent.ServerTickEvent.Post.BUS.addListener(event -> {
-            event.server().getAllLevels().forEach(world1 -> {
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, event -> {
+            event.getServer().getAllLevels().forEach(world1 -> {
                 GlobalPortalStorage gps = GlobalPortalStorage.get(world1);
                 gps.tick();
             });
         });
 
-        TickEvent.ServerTickEvent.Post.BUS.addListener(event -> {
-            MinecraftServer s = event.server();
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, event -> {
+            MinecraftServer s = event.getServer();
             for (ServerLevel world : s.getAllLevels()) {
                 get(world).onServerClose();
             }

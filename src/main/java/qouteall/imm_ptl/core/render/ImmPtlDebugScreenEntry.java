@@ -1,7 +1,7 @@
 package qouteall.imm_ptl.core.render;
 
 import net.minecraft.client.gui.components.debug.DebugScreenDisplayer;
-import net.minecraft.client.gui.components.debug.DebugScreenEntries;
+import net.neoforged.neoforge.client.event.RegisterDebugEntriesEvent;
 import net.minecraft.client.gui.components.debug.DebugScreenEntry;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.Level;
@@ -20,8 +20,8 @@ public class ImmPtlDebugScreenEntry implements DebugScreenEntry {
     public static final Identifier ID =
         Identifier.fromNamespaceAndPath("immersive_portals", "portal_rendering");
     
-    public static void init() {
-        DebugScreenEntries.register(ID, new ImmPtlDebugScreenEntry());
+    public static void register(RegisterDebugEntriesEvent event) {
+        event.register(ID, new ImmPtlDebugScreenEntry());
     }
     
     @Override

@@ -1,5 +1,6 @@
 package qouteall.imm_ptl.peripheral;
 
+import qouteall.imm_ptl.core.platform_specific.O_O;
 import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
 import de.nick1st.imm_ptl.events.ClientPortalSpawnEvent;
@@ -63,7 +64,7 @@ public class IPOuterClientMisc {
     }
     
     private static File getStorageFile() {
-        return new File(Minecraft.getInstance().gameDirectory, "imm_ptl_state.json");
+        return new File(O_O.getGameDir().toFile(), "imm_ptl_state.json");
     }
     
     private static void writeToFile(OuterConfig outerConfig) {

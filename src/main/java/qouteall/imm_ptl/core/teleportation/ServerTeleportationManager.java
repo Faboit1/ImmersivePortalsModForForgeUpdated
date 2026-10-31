@@ -1,6 +1,8 @@
 package qouteall.imm_ptl.core.teleportation;
 
-import net.minecraftforge.event.TickEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+
 
 import com.mojang.logging.LogUtils;
 import de.nick1st.imm_ptl.events.DimensionEvents;
@@ -63,8 +65,8 @@ public class ServerTeleportationManager {
     }
 
     public static void init() {
-        TickEvent.ServerTickEvent.Post.BUS.addListener(event -> {
-            of(event.server()).tick(event.server());
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, event -> {
+            of(event.getServer()).tick(event.getServer());
         });
 
         IPEventBus.EVENT_BUS.addListener(ServerPortalTickEvent.class, event -> {

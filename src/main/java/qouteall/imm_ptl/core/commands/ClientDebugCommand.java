@@ -378,7 +378,7 @@ public class ClientDebugCommand {
         builder.then(Commands
             .literal("config")
             .executes(context -> {
-                // there is no config GUI on Forge 26 (Cloth Config is unavailable), point to the file
+                // there is no config GUI (Cloth Config is not used), point to the file
                 context.getSource().sendSystemMessage(Component.literal(
                     "Edit config/immersive_portals.json then run /imm_ptl_client_debug reload_config"
                 ));

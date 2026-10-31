@@ -35,7 +35,7 @@ public class PacketRedirectionClient {
     }
 
     /**
-     * This is normally called in the client thread (see {@link IPPayloadRegistryClient}).
+     * This is normally called in the client thread (NeoForge queues the payload handlers into the client packet processor).
      * The dimension id is passed as integer,
      * because the dimension id map is only stable in client thread
      * (reading dimension id map in networking thread is not guaranteed to work).
@@ -66,7 +66,7 @@ public class PacketRedirectionClient {
             }
         }
         else {
-            // normally the payload is already rescheduled into the client thread by IPPayloadRegistryClient
+            // normally the payload is already rescheduled into the client thread by NeoForge
             // keep the ordering with vanilla packets by using the same packet processor queue
             minecraft.packetProcessor().scheduleIfPossible(
                 handler,

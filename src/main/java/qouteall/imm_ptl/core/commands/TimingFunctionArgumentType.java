@@ -13,8 +13,8 @@ import net.minecraft.commands.synchronization.SingletonArgumentInfo;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import qouteall.imm_ptl.core.McHelper;
-import net.minecraftforge.eventbus.api.bus.BusGroup;
-import net.minecraftforge.registries.RegisterEvent;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import qouteall.imm_ptl.core.portal.animation.TimingFunction;
 
 import java.util.Arrays;
@@ -59,8 +59,8 @@ public class TimingFunctionArgumentType implements ArgumentType<TimingFunction> 
             .map(Enum::toString).collect(Collectors.toList());
     }
     
-    public static void init(BusGroup modEventBus) {
-        RegisterEvent.getBus(modEventBus).addListener(registerEvent -> {
+    public static void init(IEventBus modEventBus) {
+        modEventBus.addListener(RegisterEvent.class, registerEvent -> {
             registerEvent.register(BuiltInRegistries.COMMAND_ARGUMENT_TYPE.key(),
                     McHelper.newIdentifier("imm_ptl:timing_function_argument_type"),
                     () -> ArgumentTypeInfos.registerByClass(TimingFunctionArgumentType.class, SingletonArgumentInfo.contextFree(() -> instance)));

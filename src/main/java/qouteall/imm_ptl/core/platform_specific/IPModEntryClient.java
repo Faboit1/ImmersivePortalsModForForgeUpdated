@@ -1,11 +1,14 @@
 package qouteall.imm_ptl.core.platform_specific;
 
+import qouteall.imm_ptl.peripheral.platform_specific.PeripheralModEntryClient;
+import net.neoforged.neoforge.client.event.RegisterDebugEntriesEvent;
+
 import qouteall.imm_ptl.core.render.ImmPtlDebugScreenEntry;
 
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.world.entity.EntityType;
-import net.minecraftforge.eventbus.api.bus.BusGroup;
-import net.minecraftforge.client.event.EntityRenderersEvent;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import qouteall.imm_ptl.core.IPModMainClient;
 import qouteall.imm_ptl.core.compat.IPModInfoChecking;
 import qouteall.imm_ptl.core.portal.BreakableMirror;
@@ -54,12 +57,17 @@ public class IPModEntryClient {
         
     }
 
-    public void onInitializeClient(BusGroup modBus) {
+    public static void registerModBusListeners(IEventBus modBus) {
+        modBus.addListener(EntityRenderersEvent.RegisterRenderers.class, IPModEntryClient::initPortalRenderers);
+        modBus.addListener(RegisterDebugEntriesEvent.class, ImmPtlDebugScreenEntry::register);
+    }
+    
+    public void onInitializeClient() {
         IPModMainClient.init();
         
-        ImmPtlDebugScreenEntry.init();
-        
         IPModInfoChecking.initClient();
+        
+        new PeripheralModEntryClient().onInitializeClient();
     }
     
 }

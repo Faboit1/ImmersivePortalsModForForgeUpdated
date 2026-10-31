@@ -1,6 +1,9 @@
 package qouteall.imm_ptl.core;
 
-import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraft.resources.ResourceKey;
+import net.neoforged.neoforge.common.NeoForge;
+
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.Identifier;
@@ -8,12 +11,12 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraftforge.eventbus.api.bus.BusGroup;
+import net.neoforged.bus.api.IEventBus;
 import qouteall.q_misc_util.event.IPEventBus;
 import net.minecraft.core.registries.Registries;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.RegisterEvent;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import net.neoforged.neoforge.registries.DeferredHolder;
 import org.slf4j.Logger;
 import qouteall.imm_ptl.core.block_manipulation.BlockManipulationServer;
 import qouteall.imm_ptl.core.chunk_loading.EntitySync;
@@ -59,12 +62,12 @@ public class IPModMain {
     
     private static final Logger LOGGER = LogUtils.getLogger();
     
-    public static void init(BusGroup eventBus) {
+    public static void init(IEventBus eventBus) {
         loadConfig();
         
         Helper.LOGGER.info("Immersive Portals Mod Initializing");
 
-        ImmPtlNetworkConfig.init();
+        ImmPtlNetworkConfig.init(eventBus);
 
         IPEventBus.EVENT_BUS.addListener(IPGlobal.PostClientTickEvent.class, postClientTickEvent -> IPGlobal.CLIENT_TASK_LIST.processTasks());
 
@@ -99,7 +102,7 @@ public class IPModMain {
         
         BlockManipulationServer.init();
 
-        RegisterCommandsEvent.BUS.addListener(event -> {
+        NeoForge.EVENT_BUS.addListener(RegisterCommandsEvent.class, event -> {
             PortalCommand.register(event.getDispatcher(), event.getBuildContext());
         });
 
@@ -150,11 +153,11 @@ public class IPModMain {
     public static final DeferredRegister<Block> BLOCKS =
         DeferredRegister.create(Registries.BLOCK, "immersive_portals");
     
-    public static final RegistryObject<PortalPlaceholderBlock> NETHER_PORTAL_BLOCK = BLOCKS.register(
+    public static final DeferredHolder<Block, PortalPlaceholderBlock> NETHER_PORTAL_BLOCK = BLOCKS.register(
         "nether_portal_block",
         () -> new PortalPlaceholderBlock(
             BlockBehaviour.Properties.of()
-                .setId(BLOCKS.key("nether_portal_block"))
+                .setId(ResourceKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("immersive_portals", "nether_portal_block")))
                 .noCollision()
                 .sound(SoundType.GLASS)
                 .strength(1.0f, 0)

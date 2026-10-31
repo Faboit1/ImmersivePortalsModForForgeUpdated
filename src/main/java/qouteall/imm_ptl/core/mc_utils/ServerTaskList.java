@@ -1,6 +1,8 @@
 package qouteall.imm_ptl.core.mc_utils;
 
-import net.minecraftforge.event.TickEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+
 
 import de.nick1st.imm_ptl.events.ServerCleanupEvent;
 import net.minecraft.server.MinecraftServer;
@@ -10,8 +12,8 @@ import qouteall.q_misc_util.my_util.MyTaskList;
 
 public class ServerTaskList {
     public static void init() {
-        TickEvent.ServerTickEvent.Post.BUS.addListener(event -> {
-            of(event.server()).processTasks();
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, event -> {
+            of(event.getServer()).processTasks();
         });
 
         IPEventBus.EVENT_BUS.addListener(ServerCleanupEvent.class, event -> {

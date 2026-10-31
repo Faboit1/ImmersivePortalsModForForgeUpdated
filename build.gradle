@@ -1,54 +1,43 @@
 plugins {
-    id 'java'
+    id 'java-library'
     id 'idea'
-    id 'eclipse'
     id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '[7.0.29,8)'
+    id 'net.neoforged.moddev' version '2.0.148'
 }
 
 version = project.mod_version
 group = project.maven_group
 base.archivesName = project.archives_base_name
 
-// Mojang ships Java 25 to end users in 26.1+
+// Mojang ships Java 25 to end users in 26.2
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
-def mixinConfigs = [
-    'imm_ptl.mixins.json',
-    'imm_ptl_platform.mixins.json',
-    'imm_ptl_peripheral.mixins.json',
-    'q_misc_util.mixins.json',
-]
-
-minecraft {
-    // Applies META-INF/accesstransformer.cfg to the Minecraft dependency
-    accessTransformer = true
-
+neoForge {
+    version = project.neo_version
+    
+    // META-INF/accesstransformer.cfg is detected automatically
+    
     runs {
-        configureEach {
-            workingDir.convention layout.projectDirectory.dir('run')
-            systemProperty 'forge.logging.console.level', 'debug'
-            mixinConfigs.each { args "--mixin.config=${it}" }
+        client {
+            client()
         }
-
-        register('client')
-
-        register('server') {
-            args '--nogui'
+        
+        server {
+            server()
+            programArgument '--nogui'
+        }
+        
+        configureEach {
+            gameDirectory = project.file('run')
+            logLevel = org.slf4j.event.Level.DEBUG
         }
     }
-}
-
-repositories {
-    minecraft.mavenizer(it)
-    maven fg.forgeMaven
-    maven fg.minecraftLibsMaven
-    mavenCentral()
-}
-
-dependencies {
-    implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
-    annotationProcessor 'net.minecraftforge:eventbus-validator:7.0.5'
+    
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -58,31 +47,28 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('processResources', ProcessResources) {
     def props = [
-        mod_id               : project.mod_id,
-        mod_version          : project.mod_version,
+        mod_id                 : project.mod_id,
+        mod_version            : project.mod_version,
         minecraft_version_range: project.minecraft_version_range,
-        forge_version_range  : project.forge_version_range,
-        loader_version_range : project.loader_version_range,
+        neo_version_range      : project.neo_version_range,
     ]
     inputs.properties props
-    filesMatching('META-INF/mods.toml') {
+    filesMatching('META-INF/neoforge.mods.toml') {
         expand props
     }
 }
 
 tasks.named('jar', Jar) {
-    archiveFileName = "${project.archives_base_name}-${project.mod_version}-mc${project.minecraft_version}-forge.jar"
+    archiveFileName = "${project.archives_base_name}-${project.mod_version}-mc${project.minecraft_version}-neoforge.jar"
     from 'LICENSE'
     manifest {
         attributes([
-            'Specification-Title'     : 'Immersive Portals',
-            'Specification-Vendor'    : 'qouteall',
-            'Specification-Version'   : '1',
-            'Implementation-Title'    : project.name,
-            'Implementation-Version'  : project.mod_version,
-            'Implementation-Vendor'   : 'qouteall, Nick1st',
-            // Mixin picks up our configs from the manifest at runtime
-            'MixinConfigs'            : mixinConfigs.join(','),
+            'Specification-Title'   : 'Immersive Portals',
+            'Specification-Vendor'  : 'qouteall',
+            'Specification-Version' : '1',
+            'Implementation-Title'  : project.name,
+            'Implementation-Version': project.mod_version,
+            'Implementation-Vendor' : 'qouteall, Nick1st',
         ])
     }
 }

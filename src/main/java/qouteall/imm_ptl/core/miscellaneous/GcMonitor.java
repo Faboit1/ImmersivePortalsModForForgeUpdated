@@ -1,6 +1,8 @@
 package qouteall.imm_ptl.core.miscellaneous;
 
-import net.minecraftforge.event.TickEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.ChatFormatting;
@@ -68,8 +70,8 @@ public class GcMonitor {
     }
     
     public static void initCommon() {
-        TickEvent.ServerTickEvent.Post.BUS.addListener(event -> {
-            if (event.server().isDedicatedServer()) {
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, event -> {
+            if (event.getServer().isDedicatedServer()) {
                 update();
             }
         });

@@ -27,7 +27,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.registries.DeferredHolder;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import qouteall.imm_ptl.core.IPGlobal;
@@ -51,7 +51,7 @@ public class CommandStickItem extends Item {
             ).apply(instance, Data::new)
     );
 
-    public static final RegistryObject<DataComponentType<Data>> COMPONENT_TYPE_HOLDER =
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Data>> COMPONENT_TYPE_HOLDER =
         PeripheralModMain.DATA_COMPONENTS.register(
             "command_stick_data",
             () -> DataComponentType.<Data>builder().persistent(DATA_CODEC).build()

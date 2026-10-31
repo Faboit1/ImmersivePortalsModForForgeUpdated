@@ -14,8 +14,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraftforge.eventbus.api.bus.BusGroup;
-import net.minecraftforge.registries.RegisterEvent;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.RegisterEvent;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -62,8 +62,8 @@ public class AxisArgumentType implements ArgumentType<Direction.Axis> {
             .map(Enum::toString).collect(Collectors.toList());
     }
     
-    public static void init(BusGroup modEventBus) {
-        RegisterEvent.getBus(modEventBus).addListener(registerEvent -> {
+    public static void init(IEventBus modEventBus) {
+        modEventBus.addListener(RegisterEvent.class, registerEvent -> {
             registerEvent.register(BuiltInRegistries.COMMAND_ARGUMENT_TYPE.key(),
                     Identifier.parse("imm_ptl:axis"),
                     () -> ArgumentTypeInfos.registerByClass(AxisArgumentType.class, SingletonArgumentInfo.contextFree(() -> instance)));

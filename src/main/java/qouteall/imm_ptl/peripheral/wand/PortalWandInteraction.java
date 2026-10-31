@@ -1,8 +1,10 @@
 package qouteall.imm_ptl.peripheral.wand;
 
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+
 import qouteall.q_misc_util.my_util.IPPermissions;
 
-import net.minecraftforge.event.TickEvent;
 
 import com.mojang.logging.LogUtils;
 import de.nick1st.imm_ptl.events.ServerCleanupEvent;
@@ -321,8 +323,8 @@ public class PortalWandInteraction {
     }
 
     public static void init() {
-        TickEvent.ServerTickEvent.Post.BUS.addListener(event -> {
-            of(event.server()).draggingSessionMap.entrySet().removeIf(
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, event -> {
+            of(event.getServer()).draggingSessionMap.entrySet().removeIf(
                     e -> {
                         ServerPlayer player = e.getKey();
                         if (player.isRemoved()) {

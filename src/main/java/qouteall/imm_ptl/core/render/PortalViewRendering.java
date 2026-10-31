@@ -1,5 +1,8 @@
 package qouteall.imm_ptl.core.render;
 
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.common.NeoForge;
+
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
@@ -43,7 +46,6 @@ import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.TickEvent;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -232,7 +234,7 @@ public class PortalViewRendering {
     private static boolean isRenderingView = false;
 
     public static void init() {
-        TickEvent.ClientTickEvent.Post.BUS.addListener(event -> tick());
+        NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> tick());
         IPEventBus.EVENT_BUS.addListener(ClientCleanupEvent.class, event -> cleanup());
     }
     

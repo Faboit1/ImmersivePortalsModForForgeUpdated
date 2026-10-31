@@ -1,7 +1,9 @@
 package qouteall.imm_ptl.peripheral.wand;
 
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.serialization.Codec;
@@ -22,7 +24,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import qouteall.q_misc_util.event.IPEventBus;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.registries.DeferredHolder;
 import org.jetbrains.annotations.NotNull;
 import qouteall.imm_ptl.core.IPMcHelper;
 import qouteall.imm_ptl.core.block_manipulation.BlockManipulationServer;
@@ -36,7 +38,7 @@ public class PortalWandItem extends Item {
 
     public static final Codec<Mode> MODE_CODEC = Codec.STRING.xmap(Mode::fromStr, Mode::toStr);
 
-    public static final RegistryObject<DataComponentType<Mode>> COMPONENT_TYPE_HOLDER =
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Mode>> COMPONENT_TYPE_HOLDER =
         PeripheralModMain.DATA_COMPONENTS.register(
             "portal_wand_data",
             () -> DataComponentType.<Mode>builder().persistent(MODE_CODEC).build()
@@ -47,19 +49,21 @@ public class PortalWandItem extends Item {
     }
 
     public static void init() {
-        PlayerInteractEvent.LeftClickBlock.BUS.addListener((PlayerInteractEvent.LeftClickBlock event) ->
-            // cannot break block using the wand (returning true cancels the event)
-            event.getEntity().getMainHandItem().getItem() == PeripheralModMain.PORTAL_WAND.get()
-        );
+        NeoForge.EVENT_BUS.addListener(PlayerInteractEvent.LeftClickBlock.class, event -> {
+            // cannot break block using the wand
+            if (event.getEntity().getMainHandItem().getItem() == PeripheralModMain.PORTAL_WAND.get()) {
+                event.setCanceled(true);
+            }
+        });
 
         IPEventBus.EVENT_BUS.addListener(BlockManipulationServer.CrossPortalInteractionEvent.class, crossPortalInteractionEvent ->
             crossPortalInteractionEvent.setCanDo(crossPortalInteractionEvent.player.getMainHandItem().getItem() != PeripheralModMain.PORTAL_WAND.get()));
     }
     
     public static void initClient() {
-        TickEvent.PlayerTickEvent.Post.BUS.addListener(event -> {
-            if (event.player() != null && event.player().level().isClientSide()) {
-                ItemStack itemStack = event.player().getMainHandItem();
+        NeoForge.EVENT_BUS.addListener(PlayerTickEvent.Post.class, event -> {
+            if (event.getEntity() != null && event.getEntity().level().isClientSide()) {
+                ItemStack itemStack = event.getEntity().getMainHandItem();
                 if (itemStack.getItem() == PeripheralModMain.PORTAL_WAND.get()) {
                     updateDisplay(itemStack);
                 } else {

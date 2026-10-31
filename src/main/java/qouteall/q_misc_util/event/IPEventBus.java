@@ -7,9 +7,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 /**
- * A tiny event bus for Immersive Portals' own events.
- * Forge 26's EventBus 7 requires every event type to own a static bus, so the mod's
- * internal events (portal ticks, client cleanup, dimension changes...) go through this instead.
+ * A tiny event bus for Immersive Portals' own events
+ * (portal ticks, client cleanup, dimension changes...).
  * Listeners registered for a class also receive events of its subclasses.
  */
 public final class IPEventBus {

@@ -1,6 +1,8 @@
 package qouteall.imm_ptl.core.collision;
 
-import net.minecraftforge.event.TickEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+
 
 import com.google.common.collect.ImmutableList;
 import net.minecraft.client.Minecraft;
@@ -430,8 +432,8 @@ public class CollisionHelper {
     }
     
     public static void init() {
-        TickEvent.ServerTickEvent.Post.BUS.addListener(event -> {
-            for (ServerLevel world : event.server().getAllLevels()) {
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, event -> {
+            for (ServerLevel world : event.getServer().getAllLevels()) {
                 updateCollidingPortalForWorld(world, 0);
             }
         });

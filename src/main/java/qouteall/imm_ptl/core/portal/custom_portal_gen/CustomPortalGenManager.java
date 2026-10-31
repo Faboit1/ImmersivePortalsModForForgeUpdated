@@ -1,6 +1,9 @@
 package qouteall.imm_ptl.core.portal.custom_portal_gen;
 
-import net.minecraftforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.OnDatapackSyncEvent;
+
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
@@ -17,8 +20,8 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.eventbus.api.bus.BusGroup;
-import net.minecraftforge.registries.DataPackRegistryEvent;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DataPackRegistryEvent;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import qouteall.imm_ptl.core.IPGlobal;
@@ -42,18 +45,20 @@ public class CustomPortalGenManager {
     private final ArrayList<CustomPortalGeneration> convGen = new ArrayList<>();
     private final Map<UUID, WithDim<Vec3>> playerPosBeforeTravel = new HashMap<>();
     
-    public static void init(BusGroup eventBus) {
-        DataPackRegistryEvent.NewRegistry.BUS.addListener(newRegistryEvent -> {
+    public static void init(IEventBus eventBus) {
+        eventBus.addListener(DataPackRegistryEvent.NewRegistry.class, newRegistryEvent -> {
             newRegistryEvent.dataPackRegistry(CustomPortalGeneration.REGISTRY_KEY, CustomPortalGeneration.CODEC);
             newRegistryEvent.dataPackRegistry(CustomPortalGeneration.LEGACY_REGISTRY_KEY, CustomPortalGeneration.CODEC);
         });
 
-        // TODO @Nick1st - This must probably be fixed, but there is no event for it on Forge
-//        ServerLifecycleEvents.END_DATA_PACK_RELOAD.register(
-//            (server, resourceManager, success) -> onDataPackReloaded(server)
-//        );
-
-        ServerStartedEvent.BUS.addListener((e) -> CustomPortalGenManager.onDataPackReloaded(e.getServer()));
+        NeoForge.EVENT_BUS.addListener(ServerStartedEvent.class, (e) -> CustomPortalGenManager.onDataPackReloaded(e.getServer()));
+        
+        // after /reload (the event without a player is fired once for all players after reloading)
+        NeoForge.EVENT_BUS.addListener(OnDatapackSyncEvent.class, e -> {
+            if (e.getPlayer() == null) {
+                onDataPackReloaded(e.getPlayerList().getServer());
+            }
+        });
     }
     
     private static void onDataPackReloaded(MinecraftServer server) {

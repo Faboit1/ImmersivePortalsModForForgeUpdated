@@ -1,8 +1,8 @@
 package qouteall.imm_ptl.peripheral.platform_specific;
 
 import net.minecraft.core.registries.Registries;
-import net.minecraftforge.eventbus.api.bus.BusGroup;
-import net.minecraftforge.registries.RegisterEvent;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import qouteall.imm_ptl.peripheral.PeripheralModMain;
 
 /**
@@ -12,10 +12,10 @@ import qouteall.imm_ptl.peripheral.PeripheralModMain;
 public class PeripheralModEntry {
     public static final String MODID = "imm_ptl";
     
-    public static void init(BusGroup modBus, boolean isClient) {
+    public static void init(IEventBus modBus) {
         PeripheralModMain.registerDeferred(modBus);
         
-        RegisterEvent.getBus(modBus).addListener(registerEvent -> {
+        modBus.addListener(RegisterEvent.class, registerEvent -> {
             registerEvent.register(Registries.CHUNK_GENERATOR, helper ->
                 PeripheralModMain.registerChunkGenerators(helper::register));
             registerEvent.register(Registries.BIOME_SOURCE, helper ->
@@ -23,9 +23,5 @@ public class PeripheralModEntry {
         });
         
         PeripheralModMain.init();
-        
-        if (isClient) {
-            new PeripheralModEntryClient().onInitializeClient();
-        }
     }
 }

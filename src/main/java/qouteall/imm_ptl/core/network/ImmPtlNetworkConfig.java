@@ -1,6 +1,12 @@
 package qouteall.imm_ptl.core.network;
 
-import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.common.NeoForge;
+
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.ChatFormatting;
@@ -9,8 +15,6 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
-import net.minecraftforge.network.Channel;
-import net.minecraftforge.network.ChannelBuilder;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import qouteall.imm_ptl.core.CHelper;
@@ -59,68 +63,50 @@ public class ImmPtlNetworkConfig {
     public static ModVersion immPtlVersion;
     
     /**
-     * Forge negotiates the channel list and versions during login.
-     * The channel carries no packets (see {@link IPPayloadRegistry}),
-     * it's only used for detecting whether the remote side has ImmPtl and whether the versions match.
+     * The version of the ImmPtl payload channels. NeoForge disconnects when both sides have the channels
+     * with different versions. Only the major and minor version have to match.
      */
-    public static final Identifier HANDSHAKE_CHANNEL_ID =
-        Identifier.fromNamespaceAndPath("immersive_portals", "handshake");
-    
-    private static Channel<?> handshakeChannel;
-    
-    private static int getProtocolVersion(ModVersion version) {
-        // only major and minor version have to match
-        return version.major() * 1000 + version.minor();
+    public static String getNetworkVersion() {
+        return immPtlVersion.major() + "." + immPtlVersion.minor();
     }
     
-    public static void init() {
+    public static void init(IEventBus modBus) {
         immPtlVersion = O_O.getImmPtlVersion();
         
         LOGGER.info("Immersive Portals Core version {}", immPtlVersion);
         
-        int protocolVersion = getProtocolVersion(immPtlVersion);
+        modBus.addListener(RegisterPayloadHandlersEvent.class, IPPayloadRegistry::register);
         
-        handshakeChannel = ChannelBuilder.named(HANDSHAKE_CHANNEL_ID)
-            .networkProtocolVersion(protocolVersion)
-            // checked on the client, with the server's version
-            .clientAcceptedVersions((status, remoteVersion) -> {
-                if (status != Channel.VersionTest.Status.PRESENT) {
-                    // allow joining a server without ImmPtl, a warning will be shown
-                    return true;
-                }
-                if (remoteVersion == protocolVersion) {
-                    return true;
-                }
-                return IPConfig.getConfig().clientTolerantVersionMismatchWithServer;
-            })
-            // checked on the server, with the client's version
-            .serverAcceptedVersions((status, remoteVersion) -> {
-                if (status != Channel.VersionTest.Status.PRESENT) {
-                    if (IPConfig.getConfig().serverRejectClientWithoutImmPtl) {
-                        return false;
-                    }
-                    LOGGER.warn("Accepting a client without Immersive Portals (serverRejectClientWithoutImmPtl is false)");
-                    return true;
-                }
-                if (remoteVersion == protocolVersion) {
-                    return true;
-                }
-                LOGGER.info(
-                    "Client ImmPtl protocol version {} differs from server {} (only patch version difference is tolerated)",
-                    remoteVersion, protocolVersion
-                );
-                return IPConfig.getConfig().serverTolerantVersionMismatchWithClient;
-            })
-            .eventNetworkChannel();
-        
-        IPPayloadRegistry.init();
+        // the channels are optional, so check whether the client has ImmPtl
+        NeoForge.EVENT_BUS.addListener(PlayerEvent.PlayerLoggedInEvent.class, event -> {
+            if (!(event.getEntity() instanceof ServerPlayer player)) {
+                return;
+            }
+            if (player.connection.hasChannel(PacketRedirection.Payload.TYPE)) {
+                return;
+            }
+            if (IPConfig.getConfig().serverRejectClientWithoutImmPtl) {
+                // cannot use translation key here
+                // because the translation does not exist on client without the mod
+                player.connection.disconnect(Component.literal(
+                    """
+                        The server detected that client does not install Immersive Portals mod.
+                        A server with Immersive Portals mod only works with the clients that have it.
+                        
+                        (If the detection is wrong, the server can disable this check by changing `serverRejectClientWithoutImmPtl` to `false` in the server's config file `config/immersive_portals.json` and restart.)
+                        """
+                ));
+            }
+            else {
+                LOGGER.warn("Accepting a client without Immersive Portals (serverRejectClientWithoutImmPtl is false) {}", player);
+            }
+        });
     }
     
-    //@OnlyIn(Dist.CLIENT)
     public static void initClient() {
-        ClientPlayerNetworkEvent.LoggingIn.BUS.addListener((event) -> {
-            if (handshakeChannel != null && handshakeChannel.isRemotePresent(event.getConnection())) {
-                // the version is checked by Forge, mismatch beyond the patch version is rejected
+        NeoForge.EVENT_BUS.addListener(ClientPlayerNetworkEvent.LoggingIn.class, event -> {
+            if (event.getPlayer().connection.hasChannel(PacketRedirection.Payload.TYPE)) {
+                // NeoForge rejects the connection when the channel versions differ
                 serverVersion = immPtlVersion;
             }
             else {
@@ -129,7 +115,7 @@ public class ImmPtlNetworkConfig {
             onClientJoin();
         });
         
-        ClientPlayerNetworkEvent.LoggingOut.BUS.addListener((event) -> serverVersion = null);
+        NeoForge.EVENT_BUS.addListener(ClientPlayerNetworkEvent.LoggingOut.class, event -> serverVersion = null);
     }
     
     private static void onClientJoin() {

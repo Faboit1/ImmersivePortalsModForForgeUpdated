@@ -1,6 +1,8 @@
 package qouteall.imm_ptl.core.compat;
 
-import net.minecraftforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.common.NeoForge;
+
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.ChatFormatting;
@@ -9,9 +11,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
-import net.minecraftforge.fml.ModContainer;
-import net.minecraftforge.fml.ModList;
-import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
+import net.neoforged.fml.loading.FMLEnvironment;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -230,8 +232,8 @@ public class IPModInfoChecking {
         IPGlobal.CLIENT_TASK_LIST.addTask(MyTaskList.withDelayCondition(
             () -> Minecraft.getInstance().level == null,
             MyTaskList.oneShotTask(() -> {
-                if (IPConfig.getConfig().shouldDisplayWarning("many_mods") && FMLEnvironment.production) {
-                    List<? extends ModContainer> topLevelMods = ModList.getMods().stream().map(info -> ModList.getModContainerById(info.getModId()).orElse(null)).filter(java.util.Objects::nonNull).toList();
+                if (IPConfig.getConfig().shouldDisplayWarning("many_mods") && FMLEnvironment.isProduction()) {
+                    List<? extends ModContainer> topLevelMods = ModList.get().getMods().stream().map(info -> ModList.get().getModContainerById(info.getModId()).orElse(null)).filter(java.util.Objects::nonNull).toList();
 //                    FabricLoader.getInstance().getAllMods().stream()
 //                        .filter(modContainer -> modContainer.getContainingMod().isEmpty()).toList();
                     
@@ -283,7 +285,7 @@ public class IPModInfoChecking {
     }
     
     public static void initDedicatedServer() {
-        ServerStartedEvent.BUS.addListener(event -> {
+        NeoForge.EVENT_BUS.addListener(ServerStartedEvent.class, event -> {
             MinecraftServer server = event.getServer();
             if (!IPGlobal.checkModInfoFromInternet) {
                 return;
